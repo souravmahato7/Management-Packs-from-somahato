@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <ManagementPack SchemaVersion="2.0" ContentReadable="true" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <Manifest>
     <Identity>
@@ -235,7 +235,7 @@ $ScriptTime = ($EndTime - $StartTime).TotalSeconds
           <!-- HealthState = Warning or Error -->
         </OperationalStates>
         <Configuration>
-          <IntervalSeconds>3600</IntervalSeconds>
+          <IntervalSeconds>600</IntervalSeconds>
           <SyncTime></SyncTime>
           <TimeoutSeconds>120</TimeoutSeconds>
         </Configuration>
