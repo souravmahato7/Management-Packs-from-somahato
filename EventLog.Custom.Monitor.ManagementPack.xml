@@ -1,0 +1,271 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ManagementPack SchemaVersion="2.0" ContentReadable="true" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Manifest>
+    <Identity>
+      <ID>EventLog.Custom.Monitor.ManagementPack</ID>
+      <Version>1.0.0.2</Version>
+    </Identity>
+    <Name>EventLog.Custom.Monitor.ManagementPack</Name>
+    <References>
+      <Reference Alias="Windows">
+        <ID>Microsoft.Windows.Library</ID>
+        <Version>7.5.8501.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="Health">
+        <ID>System.Health.Library</ID>
+        <Version>7.0.8437.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="System">
+        <ID>System.Library</ID>
+        <Version>7.5.8501.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+    </References>
+  </Manifest>
+  <TypeDefinitions>
+    <ModuleTypes>
+      <DataSourceModuleType ID="EventLog.Custom.Monitor.DataSource" Accessibility="Internal" Batching="false">
+        <Configuration>
+          <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="0" type="xsd:string" name="SyncTime" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:integer" name="TimeoutSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="SyncTime" Selector="$Config/SyncTime$" ParameterType="string" />
+          <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
+        </OverrideableParameters>
+        <ModuleImplementation Isolation="Any">
+          <Composite>
+            <MemberModules>
+              <DataSource ID="Scheduler" TypeID="System!System.Scheduler">
+                <Scheduler>
+                  <SimpleReccuringSchedule>
+                    <Interval Unit="Seconds">$Config/IntervalSeconds$</Interval>
+                    <SyncTime>$Config/SyncTime$</SyncTime>
+                  </SimpleReccuringSchedule>
+                  <ExcludeDates />
+                </Scheduler>
+              </DataSource>
+              <ProbeAction ID="PA" TypeID="Windows!Microsoft.Windows.PowerShellPropertyBagTriggerOnlyProbe">
+                <ScriptName>EventLog.Custom.Monitor.DataSource.ps1</ScriptName>
+                <ScriptBody>
+#=================================================================================
+#  Describe Script Here
+#
+#  Author:Sourav Mahato  
+#  v1.0
+#=================================================================================
+
+
+# Constants section - modify stuff here:
+#=================================================================================
+# Assign script name variable for use in event logging.  
+$ScriptName = "EventLog.Custom.Monitor.DataSource.ps1"
+$EventID = "1234"
+#=================================================================================
+
+
+# Starting Script section - All scripts get this
+#=================================================================================
+# Gather the start time of the script
+$StartTime = Get-Date
+#Set variable to be used in logging events
+$whoami = whoami
+$api = New-Object -comObject "MOM.ScriptAPI"
+$PropertyBag = $api.CreatePropertyBag()
+$Lastpoll = (get-date).AddMinutes(-20)
+$ErrWarn4App = Get-WinEvent -FilterHashTable @{LogName='System'; ID=6008; StartTime=$Lastpoll} -ErrorAction SilentlyContinue | Select-Object TimeCreated,LogName,ProviderName,Id,LevelDisplayName,Message -First 1
+$ErrEvent = Get-WinEvent -FilterHashTable @{LogName='System'; ID=6008; StartTime=$Lastpoll} -ErrorAction SilentlyContinue
+
+$TimeCreated = $ErrWarn4App.TimeCreated
+$Count = $ErrEvent.Count
+$LogName= $ErrWarn4App.LogName
+$ProviderName = $ErrWarn4App.ProviderName
+$Id = $ErrWarn4App.Id
+$LevelDisplayName = $ErrWarn4App.LevelDisplayName
+$Message = $ErrWarn4App.Message
+
+If ($Count -gt 0)
+{
+$PropertyBag.AddValue("Status",'BadCondition')
+$PropertyBag.AddValue("Count",$Count)
+$PropertyBag.AddValue("TimeCreated",$TimeCreated)
+$PropertyBag.AddValue("LogName",$LogName)
+$PropertyBag.AddValue("ProviderName",$ProviderName)
+$PropertyBag.AddValue("Id",$Id)
+$PropertyBag.AddValue("LevelDisplayName",$LevelDisplayName)
+$PropertyBag.AddValue("Message",$Message)
+
+}
+
+Else
+{
+$PropertyBag.AddValue("Status",'GoodCondition')
+$PropertyBag.AddValue("Count",$Count)
+$PropertyBag.AddValue("TimeCreated",$TimeCreated)
+$PropertyBag.AddValue("LogName",$LogName)
+$PropertyBag.AddValue("ProviderName",$ProviderName)
+$PropertyBag.AddValue("Id",$Id)
+$PropertyBag.AddValue("LevelDisplayName",$LevelDisplayName)
+$PropertyBag.AddValue("Message",$Message)
+
+}
+$PropertyBag
+$api.Return($PropertyBag)
+
+
+# End of script section
+#=================================================================================
+#Log an event for script ending and total execution time.
+$EndTime = Get-Date
+$ScriptTime = ($EndTime - $StartTime).TotalSeconds
+#$momapi.LogScriptEvent($ScriptName,$EventID,0,"`n Script Completed. `n Script Runtime: ($ScriptTime) seconds.")
+#=================================================================================
+# End of script
+                </ScriptBody>
+                <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
+              </ProbeAction>
+            </MemberModules>
+            <Composition>
+              <Node ID="PA">
+                <Node ID="Scheduler" />
+              </Node>
+            </Composition>
+          </Composite>
+        </ModuleImplementation>
+        <OutputType>System!System.PropertyBagData</OutputType>
+      </DataSourceModuleType>
+    </ModuleTypes>
+    <MonitorTypes>
+      <UnitMonitorType ID="EventLog.Custom.Monitor.MonitorType" Accessibility="Internal">
+        <MonitorTypeStates>
+          <MonitorTypeState ID="GoodCondition" NoDetection="false" />
+          <MonitorTypeState ID="BadCondition" NoDetection="false" />
+        </MonitorTypeStates>
+        <Configuration>
+          <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="0" type="xsd:string" name="SyncTime" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:integer" name="TimeoutSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="SyncTime" Selector="$Config/SyncTime$" ParameterType="string" />
+          <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
+        </OverrideableParameters>
+        <MonitorImplementation>
+          <MemberModules>
+            <DataSource ID="DS" TypeID="EventLog.Custom.Monitor.DataSource">
+              <IntervalSeconds>$Config/IntervalSeconds$</IntervalSeconds>
+              <SyncTime>$Config/SyncTime$</SyncTime>
+              <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
+            </DataSource>
+            <ConditionDetection ID="GoodConditionFilter" TypeID="System!System.ExpressionFilter">
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='Status']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">GoodCondition</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </ConditionDetection>
+            <ConditionDetection ID="BadConditionFilter" TypeID="System!System.ExpressionFilter">
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='Status']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">BadCondition</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </ConditionDetection>
+          </MemberModules>
+          <RegularDetections>
+            <RegularDetection MonitorTypeStateID="GoodCondition">
+              <Node ID="GoodConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </RegularDetection>
+            <RegularDetection MonitorTypeStateID="BadCondition">
+              <Node ID="BadConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </RegularDetection>
+          </RegularDetections>
+          <OnDemandDetections>
+            <OnDemandDetection MonitorTypeStateID="GoodCondition">
+              <Node ID="GoodConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </OnDemandDetection>
+            <OnDemandDetection MonitorTypeStateID="BadCondition">
+              <Node ID="BadConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </OnDemandDetection>
+          </OnDemandDetections>
+        </MonitorImplementation>
+      </UnitMonitorType>
+    </MonitorTypes>
+  </TypeDefinitions>
+  <Monitoring>
+    <Monitors>
+      <UnitMonitor ID="EventLog.Custom.Monitor" Accessibility="Public" Enabled="true" Target="Windows!Microsoft.Windows.Server.OperatingSystem" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" TypeID="EventLog.Custom.Monitor.MonitorType" ConfirmDelivery="true">
+        <Category>AvailabilityHealth</Category>
+        <AlertSettings AlertMessage="EventLog.Custom.Monitor.AlertMessage">
+          <AlertOnState>Error</AlertOnState>
+          <!-- Warning or Error should match OperationalStates below  -->
+          <AutoResolve>true</AutoResolve>
+          <AlertPriority>Normal</AlertPriority>
+          <AlertSeverity>MatchMonitorHealth</AlertSeverity>
+          <!-- Common options for AlertSeverity are MatchMonitorHealth, Information, Warning, Error -->
+        </AlertSettings>
+        <OperationalStates>
+          <OperationalState ID="GoodCondition" MonitorTypeStateID="GoodCondition" HealthState="Success" />
+          <OperationalState ID="BadCondition" MonitorTypeStateID="BadCondition" HealthState="Error" />
+          <!-- HealthState = Warning or Error -->
+        </OperationalStates>
+        <Configuration>
+          <IntervalSeconds>3600</IntervalSeconds>
+          <SyncTime></SyncTime>
+          <TimeoutSeconds>120</TimeoutSeconds>
+        </Configuration>
+      </UnitMonitor>
+    </Monitors>
+  </Monitoring>
+  <Presentation>
+    <StringResources>
+      <StringResource ID="EventLog.Custom.Monitor.AlertMessage" />
+    </StringResources>
+  </Presentation>
+  <LanguagePacks>
+    <LanguagePack ID="ENU" IsDefault="true">
+      <DisplayStrings>
+        <DisplayString ElementID="EventLog.Custom.Monitor">
+          <Name>EventLog Custom Monitor</Name>
+          <Description></Description>
+        </DisplayString>
+        <DisplayString ElementID="EventLog.Custom.Monitor" SubElementID="GoodCondition">
+          <Name>Good Condition</Name>
+        </DisplayString>
+        <DisplayString ElementID="EventLog.Custom.Monitor" SubElementID="BadCondition">
+          <Name>Bad Condition</Name>
+        </DisplayString>
+        <DisplayString ElementID="EventLog.Custom.Monitor.AlertMessage">
+          <Name>EventLog Custom Monitor: Failure</Name>
+          <Description>EventLog Custom Monitor: detected a bad condition</Description>
+        </DisplayString>
+      </DisplayStrings>
+      <KnowledgeArticles></KnowledgeArticles>
+    </LanguagePack>
+  </LanguagePacks>
+</ManagementPack>
