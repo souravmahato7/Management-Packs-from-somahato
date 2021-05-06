@@ -131,7 +131,7 @@ Function Get-SQLTable($ComputerName, $DatabaseName, $strSQLCommand, $intSQLTimeo
 }
 
 
-$Database = 'Master'
+$Database = 'master'
 $momapi = New-Object -comObject MOM.ScriptAPI
 #Log script event that we are starting task
 #$momapi.LogScriptEvent($ComputerName,$EventID,0,"`n $DatabaseName is starting. `n Running as ($whoami).")
