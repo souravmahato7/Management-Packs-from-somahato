@@ -31,7 +31,7 @@
       </ClassTypes>
     </EntityTypes>
     <MonitorTypes>
-      <UnitMonitorType ID="VMWare.Service.MonitorType" Accessibility="Internal">
+      <UnitMonitorType ID="Service.MonitorType" Accessibility="Internal">
         <MonitorTypeStates>
           <MonitorTypeState ID="Running" NoDetection="false" />
           <MonitorTypeState ID="NotRunning" NoDetection="false" />
@@ -231,7 +231,7 @@
       </Discovery>
     </Discoveries>
     <Monitors>
-      <UnitMonitor ID="VMWare.Service.Monitor" Accessibility="Public" Enabled="true" Target="VMWare.Class" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" TypeID="VMWare.Service.MonitorType" ConfirmDelivery="false">
+      <UnitMonitor ID="VMWare.Service.Monitor" Accessibility="Public" Enabled="true" Target="VMWare.Class" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" TypeID="Service.MonitorType" ConfirmDelivery="false">
         <Category>AvailabilityHealth</Category>
         <AlertSettings AlertMessage="VMWare.Service.Monitor.Alert.Message">
           <AlertOnState>Error</AlertOnState>
