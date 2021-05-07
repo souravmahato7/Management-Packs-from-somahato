@@ -3,7 +3,7 @@
   <Manifest>
     <Identity>
       <ID>Custom.Service.Management.Pack</ID>
-      <Version>1.0.0.2</Version>
+      <Version>1.0.0.3</Version>
     </Identity>
     <Name>Custom.Service.Management.Pack</Name>
     <References>
@@ -31,7 +31,7 @@
       </ClassTypes>
     </EntityTypes>
     <MonitorTypes>
-      <UnitMonitorType ID="VMWare.VMTools.Service.MonitorType" Accessibility="Internal">
+      <UnitMonitorType ID="VMWare.Service.MonitorType" Accessibility="Internal">
         <MonitorTypeStates>
           <MonitorTypeState ID="Running" NoDetection="false" />
           <MonitorTypeState ID="NotRunning" NoDetection="false" />
@@ -209,7 +209,7 @@
         </DiscoveryTypes>
         <DataSource ID="DS" TypeID="Windows!Microsoft.Windows.WmiProviderWithClassSnapshotDataMapper">
           <NameSpace>root\cimv2</NameSpace>
-          <Query>SELECT * FROM Win32_Service WHERE Name='VMTools'</Query>
+          <Query>SELECT * FROM Win32_Service WHERE Name='VMWare'</Query>
           <!-- Example query here:  <Query><![CDATA[select * from Win32_Service where Name = 'spooler' and startmode = 'Manual']]></Query> -->
           <Frequency>14400</Frequency>
           <!-- seconds -->
@@ -231,9 +231,9 @@
       </Discovery>
     </Discoveries>
     <Monitors>
-      <UnitMonitor ID="VMWare.VMTools.Service.Monitor" Accessibility="Public" Enabled="true" Target="VMWare.Class" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" TypeID="VMWare.VMTools.Service.MonitorType" ConfirmDelivery="false">
+      <UnitMonitor ID="VMWare.Service.Monitor" Accessibility="Public" Enabled="true" Target="VMWare.Class" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" TypeID="VMWare.Service.MonitorType" ConfirmDelivery="false">
         <Category>AvailabilityHealth</Category>
-        <AlertSettings AlertMessage="VMWare.VMTools.Service.Monitor.Alert.Message">
+        <AlertSettings AlertMessage="VMWare.Service.Monitor.Alert.Message">
           <AlertOnState>Error</AlertOnState>
           <AutoResolve>true</AutoResolve>
           <AlertPriority>Normal</AlertPriority>
@@ -249,7 +249,7 @@
         </OperationalStates>
         <Configuration>
           <ComputerName />
-          <ServiceName>VMTools</ServiceName>
+          <ServiceName>VMWare</ServiceName>
           <IntervalSeconds>30</IntervalSeconds>
           <CheckStartupType>true</CheckStartupType>
           <Samples>2</Samples>
@@ -259,29 +259,29 @@
   </Monitoring>
   <Presentation>
     <StringResources>
-      <StringResource ID="VMWare.VMTools.Service.Monitor.Alert.Message" />
+      <StringResource ID="VMWare.Service.Monitor.Alert.Message" />
     </StringResources>
   </Presentation>
   <LanguagePacks>
     <LanguagePack ID="ENU" IsDefault="true">
       <DisplayStrings>
         <DisplayString ElementID="VMWare.Class">
-          <Name>TI VMWare Class</Name>
+          <Name>VMWare Class</Name>
         </DisplayString>
         <DisplayString ElementID="VMWare.Class.Discovery">
-          <Name>TI VMWare Class Discovery</Name>
+          <Name>VMWare Class Discovery</Name>
         </DisplayString>
-        <DisplayString ElementID="VMWare.VMTools.Service.Monitor">
-          <Name>TI VMWare VMTools Service Monitor</Name>
+        <DisplayString ElementID="VMWare.Service.Monitor">
+          <Name>VMWare Service Monitor</Name>
         </DisplayString>
-        <DisplayString ElementID="VMWare.VMTools.Service.Monitor" SubElementID="Running">
+        <DisplayString ElementID="VMWare.Service.Monitor" SubElementID="Running">
           <Name>Running</Name>
         </DisplayString>
-        <DisplayString ElementID="VMWare.VMTools.Service.Monitor" SubElementID="NotRunning">
+        <DisplayString ElementID="VMWare.Service.Monitor" SubElementID="NotRunning">
           <Name>Not Running</Name>
         </DisplayString>
-        <DisplayString ElementID="VMWare.VMTools.Service.Monitor.Alert.Message">
-          <Name>TI VMWare VMTools service is not running</Name>
+        <DisplayString ElementID="VMWare.Service.Monitor.Alert.Message">
+          <Name>VMWare service is not running</Name>
           <Description>Service {0} is not running on {1}</Description>
         </DisplayString>
       </DisplayStrings>
