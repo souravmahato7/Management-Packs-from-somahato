@@ -74,7 +74,7 @@ $whoami = whoami
 # Load MOMScript API
 
 
-Function Get-SQLTable($Instancename, $DatabaseName, $strSQLCommand, $intSQLTimeout = 60)
+Function Get-SQLTable($Instancename, $DatabaseName, $strSQLCommand, $intSQLTimeout = 300)
 {	
 	trap [System.Exception]
 	{
@@ -145,18 +145,18 @@ $Count = $Result.Name.Count
 
 If ($Count -gt 0)
 {
-    if ($Status -like "GOOD")
+    if ($Status -like "BAD")
     {
 
     #$variable = "$Status"
     $bag.AddValue("Count",$Count)
     $bag.AddValue("Instancename",$Instancename)
     $bag.AddValue("DatabaseName",$DatabaseName)
-    $bag.AddValue("Status",'GoodCondition')
+    $bag.AddValue("Status",'BadCondition')
     $bag
     $momapi.Return($bag)
     }
-
+}
     else
 
     {
@@ -165,12 +165,10 @@ If ($Count -gt 0)
     $bag.AddValue("Count",$Count)
     $bag.AddValue("Instancename",$Instancename)
     $bag.AddValue("DatabaseName",$DatabaseName)
-    $bag.AddValue('Status','BadCondition')
+    $bag.AddValue('Status','GoodCondition')
     $bag
     $momapi.Return($bag)
     }
-
-}
 
 # Return all bags
 
