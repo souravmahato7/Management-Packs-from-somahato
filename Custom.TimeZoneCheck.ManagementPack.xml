@@ -1,0 +1,357 @@
+﻿<?xml version="1.0" encoding="utf-8"?><ManagementPack ContentReadable="true" SchemaVersion="2.0" OriginalSchemaVersion="2.0" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <Manifest>
+    <Identity>
+      <ID>Custom.TimeZoneCheck.ManagementPack</ID>
+      <Version>1.0.0.0</Version>
+    </Identity>
+    <Name>Custom.TimeZoneCheck.ManagementPack</Name>
+    <References>
+      <Reference Alias="Windows">
+        <ID>Microsoft.Windows.Library</ID>
+        <Version>7.5.8501.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="System">
+        <ID>System.Library</ID>
+        <Version>7.5.8501.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="Health">
+        <ID>System.Health.Library</ID>
+        <Version>7.0.8437.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+    </References>
+  </Manifest>
+  <TypeDefinitions>
+    <ModuleTypes>
+      <DataSourceModuleType ID="Custom.TimeZone.Check.Monitor.DataSource" Accessibility="Internal" Batching="false">
+        <Configuration>
+          <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="0" type="xsd:string" name="SyncTime" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:integer" name="TimeoutSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="SyncTime" Selector="$Config/SyncTime$" ParameterType="string" />
+          <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
+        </OverrideableParameters>
+        <ModuleImplementation Isolation="Any">
+          <Composite>
+            <MemberModules>
+              <DataSource ID="Scheduler" TypeID="System!System.Scheduler">
+                <Scheduler>
+                  <SimpleReccuringSchedule>
+                    <Interval Unit="Seconds">$Config/IntervalSeconds$</Interval>
+                    <SyncTime>$Config/SyncTime$</SyncTime>
+                  </SimpleReccuringSchedule>
+                  <ExcludeDates />
+                </Scheduler>
+              </DataSource>
+              <ProbeAction ID="PA" TypeID="Windows!Microsoft.Windows.PowerShellPropertyBagTriggerOnlyProbe">
+                <ScriptName>TimeZoneCheck.ps1</ScriptName>
+                <ScriptBody>
+#=================================================================================
+#  Describe Script Here
+#
+#  Author:  Sourav Mahato
+#  v1.0
+#=================================================================================
+
+#=================================================================================
+#  Describe Script Here
+#
+#  Author:  Sourav Mahato
+#  v1.0
+#=================================================================================
+
+
+# Constants section - modify stuff here:
+#=================================================================================
+# Assign script name variable for use in event logging.  
+$ScriptName = "TimeZoneCheck.ps1"
+$EventID = "1234"
+$ServerName = HostName
+
+# Gather the start time of the script
+$StartTime = Get-Date
+#Set variable to be used in logging events
+$whoami = whoami
+# Load MOMScript API
+
+$momapi = New-Object -comObject MOM.ScriptAPI
+
+#Log script event that we are starting task
+
+#$momapi.LogScriptEvent($ScriptName,$EventID,0,"`n $ScriptName is starting at $StartTime . `n Running as ($whoami).")
+
+$bag = $momapi.CreatePropertyBag()
+
+$ADSite = [System.DirectoryServices.ActiveDirectory.ActiveDirectorySite]::GetComputerSite()
+
+$ADSiteName = $ADSite.Name
+
+$Time = Get-Date -Format hh:mm
+
+$Time
+
+$Date = (Get-Date).ToString("yyyyMMdd")
+
+$Date
+
+If($ADSiteName)
+{
+
+    $Timezone = Get-TimeZone
+
+    $TimezoneName = $Timezone.Id
+
+    If ($ADSiteName -like 'London' -and $TimezoneName -like 'GMT Standard Time')
+
+    {
+
+    #$momapi.LogScriptEvent($ScriptName,$EventID,0,"Good Condition Found")
+
+    $TimezoneName = "$TimezoneName"
+    
+    $bag.AddValue(“ServerName”,$ServerName)
+
+    $bag.AddValue(“ADSiteName”,$ADSiteName)
+
+    $bag.AddValue(“TimezoneName”,$TimezoneName)
+	
+	$bag.AddValue(“Time”,$Time)
+	
+	$bag.AddValue(“Date”,$Date)
+    
+    $bag.AddValue(“Status”,"GoodCondition")
+
+    $bag
+
+    $momapi.Return($bag)
+
+    }
+
+    else
+
+    {
+
+    $momapi.LogScriptEvent($ScriptName,$EventID,0,"Bad Condition Found")
+
+    $TimezoneName = "$TimezoneName"
+    
+    $bag.AddValue(“ServerName”,$ServerName)
+    
+    $bag.AddValue(“ADSiteName”,$ADSiteName)
+
+    $bag.AddValue(“TimezoneName”,$TimezoneName)
+	
+	$bag.AddValue(“Time”,$Time)
+	
+	$bag.AddValue(“Date”,$Date)
+
+    $bag.AddValue(“Status”,"BadCondition")
+
+    $bag
+
+    $momapi.Return($bag)
+    }
+
+}
+
+Else
+
+{
+
+    $TimezoneName = "$TimezoneName"
+    
+    $bag.AddValue(“ServerName”,$ServerName)
+
+    $bag.AddValue(“ADSiteName”,$ADSiteName)
+
+    $bag.AddValue(“TimezoneName”,$TimezoneName)
+	
+	$bag.AddValue(“Time”,$Time)
+	
+	$bag.AddValue(“Date”,$Date)
+
+    $bag.AddValue(“Status”,"BadCondition")
+
+    $bag
+
+    $momapi.Return($bag)
+
+    $momapi.LogScriptEvent($ScriptName,$EventID,2,"`n Script is failed. `n Running as ($whoami).")
+
+}
+
+
+# End of script section
+#=================================================================================
+#Log an event for script ending and total execution time.
+$EndTime = Get-Date
+$ScriptTime = ($EndTime - $StartTime).TotalSeconds
+$momapi.LogScriptEvent($ScriptName,$EventID,0,"`n Script Completed. `n Script Runtime: ($ScriptTime) seconds.")
+#=================================================================================
+# End of script
+                </ScriptBody>
+                <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
+              </ProbeAction>
+            </MemberModules>
+            <Composition>
+              <Node ID="PA">
+                <Node ID="Scheduler" />
+              </Node>
+            </Composition>
+          </Composite>
+        </ModuleImplementation>
+        <OutputType>System!System.PropertyBagData</OutputType>
+      </DataSourceModuleType>
+    </ModuleTypes>
+    <MonitorTypes>
+      <UnitMonitorType ID="Custom.TimeZone.Check.Monitor.MonitorType" Accessibility="Internal">
+        <MonitorTypeStates>
+          <MonitorTypeState ID="GoodCondition" NoDetection="false" />
+          <MonitorTypeState ID="BadCondition" NoDetection="false" />
+        </MonitorTypeStates>
+        <Configuration>
+          <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="0" type="xsd:string" name="SyncTime" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:integer" name="TimeoutSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="SyncTime" Selector="$Config/SyncTime$" ParameterType="string" />
+          <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
+        </OverrideableParameters>
+        <MonitorImplementation>
+          <MemberModules>
+            <DataSource ID="DS" TypeID="Custom.TimeZone.Check.Monitor.DataSource">
+              <IntervalSeconds>$Config/IntervalSeconds$</IntervalSeconds>
+              <SyncTime>$Config/SyncTime$</SyncTime>
+              <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
+            </DataSource>
+            <ConditionDetection ID="GoodConditionFilter" TypeID="System!System.ExpressionFilter">
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='Status']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">GoodCondition</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </ConditionDetection>
+            <ConditionDetection ID="BadConditionFilter" TypeID="System!System.ExpressionFilter">
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='Status']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">BadCondition</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </ConditionDetection>
+          </MemberModules>
+          <RegularDetections>
+            <RegularDetection MonitorTypeStateID="GoodCondition">
+              <Node ID="GoodConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </RegularDetection>
+            <RegularDetection MonitorTypeStateID="BadCondition">
+              <Node ID="BadConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </RegularDetection>
+          </RegularDetections>
+          <OnDemandDetections>
+            <OnDemandDetection MonitorTypeStateID="GoodCondition">
+              <Node ID="GoodConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </OnDemandDetection>
+            <OnDemandDetection MonitorTypeStateID="BadCondition">
+              <Node ID="BadConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </OnDemandDetection>
+          </OnDemandDetections>
+        </MonitorImplementation>
+      </UnitMonitorType>
+    </MonitorTypes>
+  </TypeDefinitions>
+  <Monitoring>
+    <Monitors>
+      <UnitMonitor ID="Custom.TimeZone.Check.Monitor" Accessibility="Public" Enabled="true" Target="Windows!Microsoft.Windows.Server.OperatingSystem" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" TypeID="Custom.TimeZone.Check.Monitor.MonitorType" ConfirmDelivery="true">
+        <Category>AvailabilityHealth</Category>
+        <AlertSettings AlertMessage="Custom.TimeZone.Check.Monitor.AlertMessage">
+          <AlertOnState>Error</AlertOnState>
+          <AutoResolve>true</AutoResolve>
+          <AlertPriority>Normal</AlertPriority>
+          <AlertSeverity>MatchMonitorHealth</AlertSeverity>
+          <AlertParameters>
+            <AlertParameter1>$Data/Context/Property[@Name='ServerName']$</AlertParameter1>
+            <AlertParameter2>$Data/Context/Property[@Name='ADSiteName']$</AlertParameter2>
+            <AlertParameter3>$Data/Context/Property[@Name='TimezoneName']$</AlertParameter3>
+            <AlertParameter4>$Data/Context/Property[@Name='Time']$</AlertParameter4>
+            <AlertParameter5>$Data/Context/Property[@Name='Date']$</AlertParameter5>
+          </AlertParameters>
+        </AlertSettings>
+        <OperationalStates>
+          <OperationalState ID="GoodCondition" MonitorTypeStateID="GoodCondition" HealthState="Success" />
+          <OperationalState ID="BadCondition" MonitorTypeStateID="BadCondition" HealthState="Error" />
+        </OperationalStates>
+        <Configuration>
+          <IntervalSeconds>3600</IntervalSeconds>
+          <SyncTime />
+          <TimeoutSeconds>120</TimeoutSeconds>
+        </Configuration>
+      </UnitMonitor>
+    </Monitors>
+  </Monitoring>
+  <Presentation>
+    <StringResources>
+      <StringResource ID="Custom.TimeZone.Check.Monitor.AlertMessage" />
+    </StringResources>
+  </Presentation>
+  <LanguagePacks>
+    <LanguagePack ID="ENU" IsDefault="true">
+      <DisplayStrings>
+        <DisplayString ElementID="Custom.TimeZone.Check.Monitor">
+          <Name>Custom TimeZone Check Monitor</Name>
+          <Description />
+        </DisplayString>
+        <DisplayString ElementID="Custom.TimeZone.Check.Monitor" SubElementID="GoodCondition">
+          <Name>Good Condition</Name>
+        </DisplayString>
+        <DisplayString ElementID="Custom.TimeZone.Check.Monitor" SubElementID="BadCondition">
+          <Name>Bad Condition</Name>
+        </DisplayString>
+        <DisplayString ElementID="Custom.TimeZone.Check.Monitor.AlertMessage">
+          <Name>Custom TimeZone Check Monitor: Failure</Name>
+          <Description>Custom TimeZone Check Monitor: detected a bad condition
+
+Server Name: {0}
+
+Site Name: {1}
+
+Time Zone Name: {2}
+
+Time: {3}
+
+Date: {4}
+
+Expected Site Name: London
+
+Expected Time Zone Name: GMT Standard Time</Description>
+        </DisplayString>
+      </DisplayStrings>
+    </LanguagePack>
+  </LanguagePacks>
+</ManagementPack>
