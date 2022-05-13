@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="utf-8"?><ManagementPack ContentReadable="true" SchemaVersion="2.0" OriginalSchemaVersion="1.0" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <Manifest>
+    <Identity>
+      <ID>Hung.PortMonitoring</ID>
+      <Version>1.1.0.0</Version>
+    </Identity>
+    <Name>Hung.PortMonitoring</Name>
+    <References>
+      <Reference Alias="Windows">
+        <ID>Microsoft.Windows.Library</ID>
+        <Version>7.5.8501.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="System">
+        <ID>System.Library</ID>
+        <Version>7.5.8501.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="SC">
+        <ID>Microsoft.SystemCenter.Library</ID>
+        <Version>7.0.8432.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="Health">
+        <ID>System.Health.Library</ID>
+        <Version>7.0.8432.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+    </References>
+  </Manifest>
+  <TypeDefinitions>
+    <EntityTypes>
+      <ClassTypes>
+        <ClassType ID="Hung.PortMonitoring.Class" Accessibility="Internal" Abstract="false" Base="Windows!Microsoft.Windows.LocalApplication" Hosted="true" Singleton="false" Extension="false">
+          <Property ID="FolderPath" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+        </ClassType>
+      </ClassTypes>
+    </EntityTypes>
+    <ModuleTypes>
+      <DataSourceModuleType ID="Hung.PortMonitoring.Module.DS" Accessibility="Internal" Batching="false">
+        <Configuration>
+          <xsd:element minOccurs="1" name="IntervalSeconds" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="folderPath" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="0" name="SyncTime" type="xsd:dateTime" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="TimeoutSeconds" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="folderPath" Selector="$Config/folderPath$" ParameterType="string" />
+        </OverrideableParameters>
+        <ModuleImplementation Isolation="Any">
+          <Composite>
+            <MemberModules>
+              <DataSource ID="Scheduler" TypeID="System!System.SimpleScheduler">
+                <IntervalSeconds>$Config/IntervalSeconds$</IntervalSeconds>
+                <SyncTime>$Config/SyncTime$</SyncTime>
+              </DataSource>
+              <ProbeAction ID="Prob" TypeID="Windows!Microsoft.Windows.PowerShellPropertyBagProbe">
+                <ScriptName>PortMonitoringCookdown.ps1</ScriptName>
+                <ScriptBody>
+param($folderPath)
+$api = New-Object -comObject 'MOM.ScriptAPI'
+$api.LogScriptEvent('PortMonitoringCookdown.ps1',824,4,'Folder: ' + $folderPath)
+$files = Get-ChildItem -Path $folderPath | where {$_.psIsContainer -eq $false}
+foreach ($file in $files)
+{
+         
+$portmonitoringlist=get-content $file.FullName
+foreach($serverport in $portmonitoringlist)
+{
+$targetport=$serverport.Split(",")
+$target=$targetport[0]
+$port=$targetport[1]
+$bag = $api.CreatePropertyBag()
+try
+{
+$rdp=New-Object net.sockets.tcpclient
+$rdp.SendTimeout="5000"
+$rdp.ReceiveTimeout="5000"
+$rdp.Connect($target,$port)
+}
+catch {
+$context=$error[0].exception.InnerException.message
+}
+if ($rdp.connected -eq $true)
+{
+     
+$bag.AddValue('target',$target)
+$bag.AddValue('port',$port)
+$bag.AddValue('Status',"1")
+$bag.AddValue('Error',"No error")
+}
+else
+{
+     
+$bag.AddValue('target',$target)
+$bag.AddValue('port',$port)
+$bag.AddValue('Status',"0")
+$bag.AddValue('Error',$context)
+}
+$rdp=$null
+$bag
+}
+}
+  </ScriptBody>
+                <Parameters>
+                  <Parameter>
+                    <Name>folderPath</Name>
+                    <Value>$Config/folderPath$</Value>
+                  </Parameter>
+                </Parameters>
+                <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
+              </ProbeAction>
+            </MemberModules>
+            <Composition>
+              <Node ID="Prob">
+                <Node ID="Scheduler" />
+              </Node>
+            </Composition>
+          </Composite>
+        </ModuleImplementation>
+        <OutputType>System!System.PropertyBagData</OutputType>
+      </DataSourceModuleType>
+    </ModuleTypes>
+  </TypeDefinitions>
+  <Monitoring>
+    <Discoveries>
+      <Discovery ID="Hung.PortMonitoring.Discovery" Enabled="true" Target="Windows!Microsoft.Windows.Server.Computer" ConfirmDelivery="false" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes>
+          <DiscoveryClass TypeID="Hung.PortMonitoring.Class">
+            <Property TypeID="Hung.PortMonitoring.Class" PropertyID="FolderPath" />
+          </DiscoveryClass>
+        </DiscoveryTypes>
+        <DataSource ID="DS" TypeID="Windows!Microsoft.Windows.FilteredRegistryDiscoveryProvider">
+          <ComputerName>$Target/Property[Type="Windows!Microsoft.Windows.Computer"]/NetworkName$</ComputerName>
+          <RegistryAttributeDefinitions>
+            <RegistryAttributeDefinition>
+              <AttributeName>PortMonitoring</AttributeName>
+              <Path>SOFTWARE\Microsoft\PortMonitoring</Path>
+              <PathType>0</PathType>
+              <AttributeType>0</AttributeType>
+            </RegistryAttributeDefinition>
+            <RegistryAttributeDefinition>
+              <AttributeName>FolderPath</AttributeName>
+              <Path>SOFTWARE\Microsoft\PortMonitoring\FolderPath</Path>
+              <PathType>1</PathType>
+              <AttributeType>1</AttributeType>
+            </RegistryAttributeDefinition>
+          </RegistryAttributeDefinitions>
+          <Frequency>86400</Frequency>
+          <ClassId>$MPElement[Name="Hung.PortMonitoring.Class"]$</ClassId>
+          <InstanceSettings>
+            <Settings>
+              <Setting>
+                <Name>$MPElement[Name="Windows!Microsoft.Windows.Computer"]/PrincipalName$</Name>
+                <Value>$Target/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</Value>
+              </Setting>
+              <Setting>
+                <Name>$MPElement[Name="Hung.PortMonitoring.Class"]/FolderPath$</Name>
+                <Value>$Data/Values/FolderPath$</Value>
+              </Setting>
+              <Setting>
+                <Name>$MPElement[Name="System!System.Entity"]/DisplayName$</Name>
+                <Value>$Target/Property[Type="System!System.Entity"]/DisplayName$</Value>
+              </Setting>
+            </Settings>
+          </InstanceSettings>
+          <Expression>
+            <SimpleExpression>
+              <ValueExpression>
+                <XPathQuery Type="String">Values/PortMonitoring</XPathQuery>
+              </ValueExpression>
+              <Operator>Equal</Operator>
+              <ValueExpression>
+                <Value Type="String">true</Value>
+              </ValueExpression>
+            </SimpleExpression>
+          </Expression>
+        </DataSource>
+      </Discovery>
+    </Discoveries>
+    <Rules>
+      <Rule ID="Hung.PortMonitoring.PortCheck.Rule" Enabled="true" Target="Hung.PortMonitoring.Class" ConfirmDelivery="true" Remotable="true" Priority="Normal" DiscardLevel="100">
+        <Category>Custom</Category>
+        <DataSources>
+          <DataSource ID="DS" TypeID="Hung.PortMonitoring.Module.DS">
+            <IntervalSeconds>1800</IntervalSeconds>
+            <folderPath>$Target/Property[Type="Hung.PortMonitoring.Class"]/FolderPath$</folderPath>
+            <TimeoutSeconds>1200</TimeoutSeconds>
+          </DataSource>
+        </DataSources>
+        <ConditionDetection ID="Filter" TypeID="System!System.ExpressionFilter">
+          <Expression>
+            <SimpleExpression>
+              <ValueExpression>
+                <XPathQuery Type="String">Property[@Name='Status']</XPathQuery>
+              </ValueExpression>
+              <Operator>NotEqual</Operator>
+              <ValueExpression>
+                <Value Type="String">1</Value>
+              </ValueExpression>
+            </SimpleExpression>
+          </Expression>
+        </ConditionDetection>
+        <WriteActions>
+          <WriteAction ID="Alert" TypeID="Health!System.Health.GenerateAlert">
+            <Priority>2</Priority>
+            <Severity>2</Severity>
+            <AlertMessageId>$MPElement[Name="AlertMessageID13341b2812be48f8b13aca37394b0063"]$</AlertMessageId>
+            <AlertParameters>
+              <AlertParameter1>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</AlertParameter1>
+              <AlertParameter2>$Data/Property[@Name='target']$</AlertParameter2>
+              <AlertParameter3>$Data/Property[@Name='port']$</AlertParameter3>
+              <AlertParameter4>$Data/Property[@Name='Error']$</AlertParameter4>
+            </AlertParameters>
+            <Suppression>
+              <SuppressionValue>$Data/Property[@Name='target']$</SuppressionValue>
+              <SuppressionValue>$Data/Property[@Name='port']$</SuppressionValue>
+            </Suppression>
+          </WriteAction>
+        </WriteActions>
+      </Rule>
+    </Rules>
+  </Monitoring>
+  <Presentation>
+    <StringResources>
+      <StringResource ID="AlertMessageID13341b2812be48f8b13aca37394b0063" />
+      <StringResource ID="Hung.PortMonitoring.PortCheck.UnitMonitor_AlertMessageResourceID" />
+    </StringResources>
+  </Presentation>
+  <LanguagePacks>
+    <LanguagePack ID="ENU" IsDefault="true">
+      <DisplayStrings>
+        <DisplayString ElementID="AlertMessageID13341b2812be48f8b13aca37394b0063">
+          <Name>Hung.PortMonitoring.PortCheck.Rule.Alert</Name>
+          <Description>Watcher node :{0}
+Target Server for port query :{1}
+Port :{2}
+Status : unable to telnet port
+Error :{3}</Description>
+        </DisplayString>
+        <DisplayString ElementID="Hung.PortMonitoring">
+          <Name>Hung.PortMonitoring</Name>
+        </DisplayString>
+        <DisplayString ElementID="Hung.PortMonitoring.Class">
+          <Name>Hung.PortMonitoring.Class</Name>
+        </DisplayString>
+        <DisplayString ElementID="Hung.PortMonitoring.Class" SubElementID="FolderPath">
+          <Name>FolderPath</Name>
+        </DisplayString>
+        <DisplayString ElementID="Hung.PortMonitoring.Discovery">
+          <Name>Hung.PortMonitoring.Discovery</Name>
+        </DisplayString>
+        <DisplayString ElementID="Hung.PortMonitoring.Module.DS">
+          <Name>Hung.PortMonitoring.Module.DS</Name>
+        </DisplayString>
+        <DisplayString ElementID="Hung.PortMonitoring.PortCheck.Rule">
+          <Name>Hung.PortMonitoring.PortCheck.Rule</Name>
+        </DisplayString>
+        <DisplayString ElementID="Hung.PortMonitoring.PortCheck.UnitMonitor_AlertMessageResourceID">
+          <Name>Hung.PortMonitoring.PortCheck.UnitMonitor.Alert</Name>
+          <Description>Watcher node :{0}
+Target Server for port query :{1}
+Port :{2}
+Status : unable to telnet port
+Script error :{3}</Description>
+        </DisplayString>
+        <DisplayString ElementID="Hung.PortMonitoring.PortCheck.Rule" SubElementID="Alert">
+          <Name>Alert</Name>
+        </DisplayString>
+        <DisplayString ElementID="Hung.PortMonitoring.PortCheck.Rule" SubElementID="Filter">
+          <Name>Filter</Name>
+        </DisplayString>
+        <DisplayString ElementID="Hung.PortMonitoring.PortCheck.Rule" SubElementID="DS">
+          <Name>Hung.PortMonitoring.Module.DS</Name>
+        </DisplayString>
+      </DisplayStrings>
+    </LanguagePack>
+  </LanguagePacks>
+</ManagementPack>
