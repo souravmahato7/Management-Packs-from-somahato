@@ -91,7 +91,7 @@ param([string]$computerName,[string]$instancename)
 #  Describe Script Here
 #
 #  Author:  Sourav Mahato
-#  v1.0
+#  v2.0
 #=================================================================================
 
 # Constants section - modify stuff here:
