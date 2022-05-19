@@ -140,7 +140,7 @@ Function Get-SQLTable($sqlServer, $databaseName, $strSQLCommand, $intSQLTimeout 
     return $objTable
 }
 
-$database = 'Master'
+$database = 'master'
 $momApi = New-Object -comObject MOM.ScriptAPI
 
 # Log script event that we are starting task.
