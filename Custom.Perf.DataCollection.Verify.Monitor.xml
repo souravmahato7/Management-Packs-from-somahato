@@ -11,6 +11,11 @@
         <Version>7.5.8501.0</Version>
         <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
       </Reference>
+      <Reference Alias="MSCL">
+        <ID>Microsoft.SQLServer.Core.Library</ID>
+        <Version>7.0.32.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>	    
       <Reference Alias="System">
         <ID>System.Library</ID>
         <Version>7.5.8501.0</Version>
@@ -25,7 +30,7 @@
   </Manifest>
   <TypeDefinitions>
     <ModuleTypes>
-      <DataSourceModuleType ID="Custom.PerfDataCollection.Verify.Monitor.DataSource" Accessibility="Internal" Batching="false">
+      <DataSourceModuleType ID="Custom.PerfDataCollection.Verify.Monitor.DataSource" Accessibility="Internal" RunAs="MSCL!Microsoft.SQLServer.Core.RunAs.Monitoring" Batching="false">
         <Configuration>
           <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
           <xsd:element minOccurs="0" type="xsd:string" name="SyncTime" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
@@ -130,7 +135,7 @@ inner join dbo.ManagedTypeView MT on ME.MonitoringClassId=MT.Id
 inner join dbo.PerformanceCounterView C on ME.Id = C.ManagedEntityId
 left join dbo.PerformanceDataAllView P on C.PerformanceSourceInternalId=P.PerformanceSourceInternalId
 where MT.Name like '%Windows%'
-   OR MT.Name like '%UNIX%'
+   OR MT.Name like '%UNIX%' OR MT.Name like '%Linux%'
 and ME.IsDeleted=0
 group by ME.Path
 order by Status Asc
@@ -334,6 +339,7 @@ inner join dbo.ManagedTypeView MT on ME.MonitoringClassId=MT.Id
 inner join dbo.PerformanceCounterView C on ME.Id = C.ManagedEntityId
 left join dbo.PerformanceDataAllView P on C.PerformanceSourceInternalId=P.PerformanceSourceInternalId
 where MT.Name like '%Linux%'
+Or MT.Name like '%Windows%'
    OR MT.Name like '%UNIX%'
 and ME.IsDeleted=0
 group by ME.Path
