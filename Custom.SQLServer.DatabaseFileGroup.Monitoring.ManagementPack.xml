@@ -1,0 +1,639 @@
+<?xml version="1.0" encoding="utf-8"?><ManagementPack ContentReadable="true" SchemaVersion="2.0" OriginalSchemaVersion="2.0" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <Manifest>
+    <Identity>
+      <ID>Custom.SQLServer.DatabaseFileGroup.Monitoring.ManagementPack</ID>
+      <Version>1.0.0.3</Version>
+    </Identity>
+    <Name>Custom SQLServer DatabaseFileGroup Monitoring ManagementPack</Name>
+    <References>
+      <Reference Alias="Windows">
+        <ID>Microsoft.Windows.Library</ID>
+        <Version>7.5.8501.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="MSCL">
+        <ID>Microsoft.SQLServer.Core.Library</ID>
+        <Version>7.0.36.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="MSWD">
+        <ID>Microsoft.SQLServer.Windows.Discovery</ID>
+        <Version>7.0.36.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="System">
+        <ID>System.Library</ID>
+        <Version>7.5.8501.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="Health">
+        <ID>System.Health.Library</ID>
+        <Version>7.0.8443.6</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+    </References>
+  </Manifest>
+  <TypeDefinitions>
+    <EntityTypes>
+      <ClassTypes>
+        <ClassType ID="Custom.SQLServer.DatabaseFileGroup.Class" Accessibility="Public" Abstract="false" Base="Windows!Microsoft.Windows.LocalApplication" Hosted="true" Singleton="false" Extension="false">
+          <Property ID="FileGroupName" Type="string" AutoIncrement="false" Key="true" CaseSensitive="false" MaxLength="256" MinLength="0" Required="true" Scale="0" />
+          <Property ID="DBName" Type="string" AutoIncrement="false" Key="true" CaseSensitive="false" MaxLength="256" MinLength="0" Required="true" Scale="0" />
+          <Property ID="CustomFileGroupName" Type="string" AutoIncrement="false" Key="true" CaseSensitive="false" MaxLength="256" MinLength="0" Required="true" Scale="0" />
+          <Property ID="SQLServerInstance" Type="string" AutoIncrement="false" Key="true" CaseSensitive="false" MaxLength="256" MinLength="0" Required="true" Scale="0" />
+		  <Property ID="FileGroupSpace" Type="string" AutoIncrement="false" Key="true" CaseSensitive="false" MaxLength="256" MinLength="0" Required="true" Scale="0" />
+        </ClassType>
+      </ClassTypes>
+    </EntityTypes>
+    <ModuleTypes>
+      <DataSourceModuleType ID="Custom.SQLServer.Databasefilegroup.Availability.Monitor.DS" Accessibility="Internal" Batching="false">
+        <Configuration>
+          <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="0" type="xsd:string" name="SyncTime" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:string" name="CustomFileGroupName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:string" name="ComputerName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:integer" name="TimeoutSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="SyncTime" Selector="$Config/SyncTime$" ParameterType="string" />
+          <OverrideableParameter ID="ComputerName" Selector="$Config/ComputerName$" ParameterType="string" />
+          <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
+        </OverrideableParameters>
+        <ModuleImplementation Isolation="Any">
+          <Composite>
+            <MemberModules>
+              <DataSource ID="Scheduler" TypeID="System!System.Scheduler">
+                <Scheduler>
+                  <SimpleReccuringSchedule>
+                    <Interval Unit="Seconds">$Config/IntervalSeconds$</Interval>
+                    <SyncTime>$Config/SyncTime$</SyncTime>
+                  </SimpleReccuringSchedule>
+                  <ExcludeDates />
+                </Scheduler>
+              </DataSource>
+              <ProbeAction ID="PA" TypeID="Windows!Microsoft.Windows.PowerShellPropertyBagProbe">
+                <ScriptName>Custom.MultipleService.Availability.Monitor.DS.ps1</ScriptName>
+                <ScriptBody>
+param([string]$computerName)
+
+#$computerName = 'sql2016.lab.com'
+#=================================================================================
+#  Describe Script Here
+#
+#  Author:  Sourav Mahato
+#  v2.0
+#=================================================================================
+
+# Constants section - modify stuff here:
+#=================================================================================
+# Assign script name variable for use in event logging.  
+$ScriptName = "Custom.SQLServer.FilegroupFreeSpace.Monitor.DS.ps1"
+$EventID = "7890"
+
+# Gather the start time of the script.
+$StartTime = Get-Date
+# Set variable to be used in logging events.
+$whoami = whoami
+
+Function Get-SQLTable($SQLServerInstance, $strSQLCommand, $intSQLTimeout = 300) {	
+	trap [System.Exception]	{
+		Write-Host "Exception trapped, $($_.Exception.Message)"
+		Write-Host "SQL Command Failed.  Sql Server [$SQLServerInstance], Sql Database [Master], Sql Command [$strSQLCommand]."
+        $momApi.LogScriptEvent($SQLServerInstance,$EventID,2,"`n SQL Command Failed.  Sql Server [$SQLServerInstance], Sql Database [master], SQL Instance $instancename Sql Command [$strSQLCommand] `n Running as ($whoami).")
+		continue;
+	}
+	
+	# Build SQL Server connect string.
+	$strSQLConnect = "Server=$SQLServerInstance;Database=master;Integrated Security=True;Connection Timeout=$intSQLTimeout" 
+	
+	# Connect to server and recieve dataset.
+	$objSQLConnection = New-Object System.Data.SQLClient.SQLConnection
+	$objSQLConnection.ConnectionString =  $strSQLConnect
+	$objSQLCmd = New-Object System.Data.SQLClient.SQLCommand
+	$objSQLCmd.CommandTimeout = $intSQLTimeout
+	$objSQLCmd.CommandText = $strSQLCommand
+	$objSQLCmd.Connection = $objSQLConnection
+	$objSQLAdapter = New-Object System.Data.SQLClient.SQLDataAdapter
+	$objSQLAdapter.SelectCommand = $objSQLCmd
+	$objDataSet = New-Object System.Data.DataSet
+	$strRowCount = $objSQLAdapter.Fill($objDataSet)
+
+	if ($?) {
+		#pull out table
+		$objTable = $objDataSet.Tables[0]
+	}
+	
+	# Close the SQL connection.
+	$objSQLConnection.Close()
+	
+	# Return the dataset to caller.
+    return $objTable
+}
+
+$momApi = New-Object -comObject MOM.ScriptAPI
+
+# Log script event that we are starting task.
+#$momApi.LogScriptEvent($computerName,$EventID,0,"`n $databaseName is starting. `n Running as ($whoami).")
+
+$strSQLCommand = "CREATE TABLE #TMP(
+DatabaseName VARCHAR(100),
+[FilegroupName]VARCHAR(100),
+[TotalSizeinMB] INT,
+[AvailableSpaceInMB] INT,
+[NumberOfFiles] INT,
+[PercentFree] INT
+
+--[Boundary Type] VARCHAR(100),
+--[Boundary Point] VARCHAR(100),
+
+)
+
+DECLARE @Command varchar(3000) 
+
+SELECT @Command = 'USE [?] INSERT INTO #TMP 
+
+
+Select DB_Name() as DatabaseName,FilegroupName,SUM(TotalSizeinMB) as Filesize,SUM(AvailableSpaceInMB) As TotalAvailableSpaceInMB,count(*) as NumberOfFiles,ROUND((SUM(AvailableSpaceInMB)*100/SUM(TotalSizeinMB)),2) as PercentFree from (
+SELECT  
+CAST((f.size/128.0) AS DECIMAL(15,2)) AS [TotalSizeinMB],
+CAST(f.size/128.0 - CAST(FILEPROPERTY(f.name, ''SpaceUsed'') AS int)/128.0 AS DECIMAL(15,2)) 
+AS [AvailableSpaceInMB], fg.name AS [FilegroupName]
+FROM sys.database_files AS f WITH (NOLOCK) 
+LEFT OUTER JOIN sys.filegroups AS fg WITH (NOLOCK)
+ON f.data_space_id = fg.data_space_id
+Where f.type_desc &lt;&gt; ''LOG'') t
+Group By FilegroupName OPTION (RECOMPILE);
+
+'
+
+
+EXEC sp_MSforeachdb @Command
+
+
+SELECT * FROM #TMP;
+DROP TABLE #TMP"
+
+$Instances = @("SYSTEMCENTER","inst1")
+Foreach ($Instance in $Instances)
+{
+$SQLServerInstance = ''
+
+if ($Instance -like 'MSSQLSERVER') 
+{
+    $SQLServerInstance = $computerName
+}
+else 
+{
+    $SQLServerInstance = "$computerName" + '\' + "$Instance"
+}
+
+$result = Get-SqlTable $SQLServerInstance $strSQLCommand
+
+#$momApi.LogScriptEvent($ScriptName,$EventID,0,"SQL Server $computerName and Instance $Instance having $databaseName status is $status")
+#"$SQLDB status is $status" &gt;&gt;"C:\Temp\SQL.txt"
+for ($i = 0; $i -lt $result.Rows.Count; $i++) {
+    $DBName = $result.DatabaseName[$i]
+    $FileGroupSpace = $result.PercentFree[$i]
+    $FileGroupname = $result.FilegroupName[$i]
+    $CustomFileGroupName = "$SQLServerInstance" + '\' + "$DBName" + '\' + "$FileGroupName"
+    $condition = ''
+    if ($FileGroupSpace -ge "10" ) {
+        $condition = 'GoodCondition'
+    }
+    else {
+        $condition = 'BadCondition'
+    }
+    
+    $bag = $momApi.CreatePropertyBag()
+    $bag.AddValue('ComputerName',$computerName)
+    $bag.AddValue('InstanceName',$SQLServerInstance)
+    $bag.AddValue('DatabaseName',$DBName)
+    $bag.AddValue('FileGroupname',$FileGroupname)
+    $bag.AddValue('CustomFileGroupName',$CustomFileGroupName)
+    $bag.AddValue('FileGroupSpace',$FileGroupSpace)
+    $bag.AddValue('Status',$condition)
+
+	$bag
+$momapi.Return($bag)
+}
+}
+# End of script section
+#=================================================================================
+#Log an event for script ending and total execution time.
+$EndTime = Get-Date
+$ScriptTime = ($EndTime - $StartTime).TotalSeconds
+#$momApi.LogScriptEvent($ScriptName,$EventID,0,"`n Script Completed. `n Script Runtime: ($ScriptTime) seconds.")
+#=================================================================================
+# End of script
+                </ScriptBody>
+                <Parameters>
+                  <Parameter>
+                    <Name>ComputerName</Name>
+                    <Value>$Config/ComputerName$</Value>
+                  </Parameter>
+                </Parameters>
+                <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
+              </ProbeAction>
+              <ConditionDetection ID="InstanceFilter" TypeID="System!System.ExpressionFilter">
+                <Expression>
+                  <SimpleExpression>
+                    <ValueExpression>
+                      <XPathQuery Type="String">Property[@Name='CustomFileGroupName']</XPathQuery>
+                    </ValueExpression>
+                    <Operator>Equal</Operator>
+                    <ValueExpression>
+                      <Value Type="String">$Config/CustomFileGroupName$</Value>
+                    </ValueExpression>
+                  </SimpleExpression>
+                </Expression>
+              </ConditionDetection>
+            </MemberModules>
+            <Composition>
+			<Node ID="InstanceFilter">
+              <Node ID="PA">
+                <Node ID="Scheduler" />
+              </Node>
+			  </Node>
+            </Composition>
+          </Composite>
+        </ModuleImplementation>
+        <OutputType>System!System.PropertyBagData</OutputType>
+      </DataSourceModuleType>
+    </ModuleTypes>
+    <MonitorTypes>
+      <UnitMonitorType ID="Custom.SQLServer.Databasefilegroup.Availability.Monitor.MonitorType" Accessibility="Internal">
+        <MonitorTypeStates>
+          <MonitorTypeState ID="GoodCondition" NoDetection="false" />
+          <MonitorTypeState ID="BadCondition" NoDetection="false" />
+        </MonitorTypeStates>
+        <Configuration>
+          <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="0" type="xsd:string" name="SyncTime" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:string" name="CustomFileGroupName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:string" name="ComputerName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:integer" name="TimeoutSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:integer" name="MatchCount" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="SyncTime" Selector="$Config/SyncTime$" ParameterType="string" />
+          <OverrideableParameter ID="ComputerName" Selector="$Config/ComputerName$" ParameterType="string" />
+          <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="MatchCount" Selector="$Config/MatchCount$" ParameterType="int" />
+        </OverrideableParameters>
+        <MonitorImplementation>
+          <MemberModules>
+            <DataSource ID="DS" TypeID="Custom.SQLServer.Databasefilegroup.Availability.Monitor.DS">
+              <IntervalSeconds>$Config/IntervalSeconds$</IntervalSeconds>
+              <SyncTime>$Config/SyncTime$</SyncTime>
+              <CustomFileGroupName>$Config/CustomFileGroupName$</CustomFileGroupName>
+              <ComputerName>$Config/ComputerName$</ComputerName>
+              <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
+            </DataSource>
+            <ConditionDetection ID="GoodConditionFilter" TypeID="System!System.ExpressionFilter">
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='Status']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">GoodCondition</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </ConditionDetection>
+            <ConditionDetection ID="BadConditionFilter" TypeID="System!System.ExpressionFilter">
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='Status']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">BadCondition</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <SuppressionSettings>
+                <MatchCount>$Config/MatchCount$</MatchCount>
+              </SuppressionSettings>
+            </ConditionDetection>
+          </MemberModules>
+          <RegularDetections>
+            <RegularDetection MonitorTypeStateID="GoodCondition">
+              <Node ID="GoodConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </RegularDetection>
+            <RegularDetection MonitorTypeStateID="BadCondition">
+              <Node ID="BadConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </RegularDetection>
+          </RegularDetections>
+          <OnDemandDetections>
+            <OnDemandDetection MonitorTypeStateID="GoodCondition">
+              <Node ID="GoodConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </OnDemandDetection>
+            <OnDemandDetection MonitorTypeStateID="BadCondition">
+              <Node ID="BadConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </OnDemandDetection>
+          </OnDemandDetections>
+        </MonitorImplementation>
+      </UnitMonitorType>
+    </MonitorTypes>
+  </TypeDefinitions>
+  <Monitoring>
+    <Discoveries>
+      <Discovery ID="Custom.SQLServer.DatabaseFileGroup.Class.Discovery" Enabled="false" Target="Windows!Microsoft.Windows.Server.OperatingSystem" ConfirmDelivery="false" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes>
+          <DiscoveryClass TypeID="Custom.SQLServer.DatabaseFileGroup.Class">
+            <Property PropertyID="FileGroupName" />
+            <Property PropertyID="DBName" />
+            <Property PropertyID="CustomFileGroupName" />
+            <Property PropertyID="SQLServerInstance" />
+			<Property PropertyID="FileGroupSpace" />
+          </DiscoveryClass>
+        </DiscoveryTypes>
+        <DataSource ID="DS" TypeID="Windows!Microsoft.Windows.TimedPowerShell.DiscoveryProvider">
+          <IntervalSeconds>604800</IntervalSeconds>
+          <SyncTime />
+          <ScriptName>Custom.SQLServer.DatabaseFileGroup.Class.Discovery.ps1</ScriptName>
+          <ScriptBody>
+param($SourceId,$ManagedEntityId,[string]$computerName)
+
+
+# Manual Testing section - put stuff here for manually testing script - typically parameters:
+#=================================================================================
+# $SourceId = '{00000000-0000-0000-0000-000000000000}'
+# $ManagedEntityId = '{00000000-0000-0000-0000-000000000000}'
+# $ComputerName = "computername.domain.com"
+# $Computername = 'server.domain.com'
+#=================================================================================
+
+# Constants section - modify stuff here:
+#=================================================================================
+# Assign script name variable for use in event logging.  
+# ScriptName should be the same as the ID of the module that the script is contained in
+$ScriptName = "Custom.SQLServer.DatabaseFileGroup.Class.Discovery.ps1"
+$EventID = "1234"
+#=================================================================================
+
+# Starting Script section - All scripts get this
+#=================================================================================
+# Gather the start time of the script
+$StartTime = Get-Date
+#Set variable to be used in logging events
+$whoami = whoami
+
+#=================================================================================
+# Constants section - modify stuff here:
+#=================================================================================
+
+Function Get-SQLTable($SQLServerInstance, $strSQLCommand, $intSQLTimeout = 300) {	
+	trap [System.Exception]	{
+		Write-Host "Exception trapped, $($_.Exception.Message)"
+		Write-Host "SQL Command Failed.  Sql Server [$SQLServerInstance], Sql Database [Master], Sql Command [$strSQLCommand]."
+        $momApi.LogScriptEvent($SQLServerInstance,$EventID,2,"`n SQL Command Failed.  Sql Server [$SQLServerInstance], Sql Database [master], SQL Instance $InstanceName Sql Command [$strSQLCommand] `n Running as ($whoami).")
+		continue;
+	}
+	
+	# Build SQL Server connect string.
+	$strSQLConnect = "Server=$SQLServerInstance;Database=master;Integrated Security=True;Connection Timeout=$intSQLTimeout" 
+	
+	# Connect to server and recieve dataset.
+	$objSQLConnection = New-Object System.Data.SQLClient.SQLConnection
+	$objSQLConnection.ConnectionString =  $strSQLConnect
+	$objSQLCmd = New-Object System.Data.SQLClient.SQLCommand
+	$objSQLCmd.CommandTimeout = $intSQLTimeout
+	$objSQLCmd.CommandText = $strSQLCommand
+	$objSQLCmd.Connection = $objSQLConnection
+	$objSQLAdapter = New-Object System.Data.SQLClient.SQLDataAdapter
+	$objSQLAdapter.SelectCommand = $objSQLCmd
+	$objDataSet = New-Object System.Data.DataSet
+	$strRowCount = $objSQLAdapter.Fill($objDataSet)
+	if ($?) {
+		#pull out table
+		$objTable = $objDataSet.Tables[0]
+	}
+	
+	# Close the SQL connection.
+	$objSQLConnection.Close()
+	
+	# Return the dataset to caller.
+    return $objTable
+}
+
+# Load MOMScript API
+$momapi = New-Object -comObject MOM.ScriptAPI
+#Log script event that we are starting task
+#$momapi.LogScriptEvent($ScriptName,$EventID,0,"`n Script is starting. `n Running as ($whoami).")
+#=================================================================================
+	
+
+# Discovery Script section - Discovery scripts get this
+#=================================================================================
+# Load SCOM Discovery module
+$DiscoveryData = $momapi.CreateDiscoveryData(0, $SourceId, $ManagedEntityId)
+$Count = 0
+#=================================================================================	
+# Log script event that we are starting task.
+#$momApi.LogScriptEvent($computerName,$EventID,0,"`n master is starting. `n Running as ($whoami).")
+
+$strSQLCommand = "CREATE TABLE #TMP(
+DatabaseName VARCHAR(100),
+[FileGroupName]VARCHAR(100),
+[TotalSizeinMB] INT,
+[AvailableSpaceInMB] INT,
+[NumberOfFiles] INT,
+[PercentFree] INT
+
+--[Boundary Type] VARCHAR(100),
+--[Boundary Point] VARCHAR(100),
+
+)
+
+DECLARE @Command varchar(3000) 
+
+SELECT @Command = 'USE [?] INSERT INTO #TMP 
+
+
+Select DB_Name() as DatabaseName,FileGroupName,SUM(TotalSizeinMB) as Filesize,SUM(AvailableSpaceInMB) As TotalAvailableSpaceInMB,count(*) as NumberOfFiles,ROUND((SUM(AvailableSpaceInMB)*100/SUM(TotalSizeinMB)),2) as PercentFree from (
+SELECT  
+CAST((f.size/128.0) AS DECIMAL(15,2)) AS [TotalSizeinMB],
+CAST(f.size/128.0 - CAST(FILEPROPERTY(f.name, ''SpaceUsed'') AS int)/128.0 AS DECIMAL(15,2)) 
+AS [AvailableSpaceInMB], fg.name AS [FileGroupName]
+FROM sys.database_files AS f WITH (NOLOCK) 
+LEFT OUTER JOIN sys.filegroups AS fg WITH (NOLOCK)
+ON f.data_space_id = fg.data_space_id
+Where f.type_desc &lt;&gt; ''LOG'') t
+Group By FileGroupName OPTION (RECOMPILE);
+
+'
+
+
+EXEC sp_MSforeachdb @Command
+
+
+SELECT * FROM #TMP;
+DROP TABLE #TMP"
+
+$Instances = @("SYSTEMCENTER","inst1")
+Foreach ($Instance in $Instances)
+{
+$SQLServerInstance = ''
+
+if ($Instance -like 'MSSQLSERVER') 
+{
+    $SQLServerInstance = $computerName
+}
+else 
+{
+    $SQLServerInstance = "$computerName" + '\' + "$Instance"
+}
+
+$results = Get-SqlTable $SQLServerInstance $strSQLCommand
+
+foreach ($result in $results)
+{
+	$FileGroupName = $result.FileGroupName
+	$DBName = $result.DatabaseName
+	$FileGroupSpace = $result.PercentFree
+	$CustomFileGroupName = "$SQLServerInstance" + '\' + "$DBName" + '\' + "$FileGroupName"
+	$instance = $DiscoveryData.CreateClassInstance("$MPElement[Name='Custom.SQLServer.DatabaseFileGroup.Class']$")
+	$instance.AddProperty("$MPElement[Name='Windows!Microsoft.Windows.Computer']/PrincipalName$", $ComputerName)
+    $instance.AddProperty("$MPElement[Name='Custom.SQLServer.DatabaseFileGroup.Class']/FileGroupName$", $FileGroupName)
+	$instance.AddProperty("$MPElement[Name='Custom.SQLServer.DatabaseFileGroup.Class']/DBName$", $DBName)
+    $instance.AddProperty("$MPElement[Name='Custom.SQLServer.DatabaseFileGroup.Class']/CustomFileGroupName$", $CustomFileGroupName)
+    $instance.AddProperty("$MPElement[Name='Custom.SQLServer.DatabaseFileGroup.Class']/SQLServerInstance$", $SQLServerInstance)
+	$instance.AddProperty("$MPElement[Name='Custom.SQLServer.DatabaseFileGroup.Class']/FileGroupSpace$", $FileGroupSpace)
+	$instance.AddProperty("$MPElement[Name='System!System.Entity']/DisplayName$", $CustomFileGroupName)
+    $DiscoveryData.AddInstance($instance)
+}
+}
+
+
+$Message="Discovery of Custom.SQLServer DatabaseFileGroup.Enabled.Class has been finished, Discovered $($count) records; `n"
+#$momapi.LogScriptEvent($ScriptName,$EventID,0,$Message)
+	
+# Return Discovery Items Normally  
+         
+$DiscoveryData
+
+$momapi.Return($DiscoveryData)
+#=================================================================================
+# End MAIN script section
+
+
+# End of script section
+#=================================================================================
+#Log an event for script ending and total execution time.
+$EndTime = Get-Date
+$ScriptTime = ($EndTime - $StartTime).TotalSeconds
+#$momapi.LogScriptEvent($ScriptName,$EventID,0,"`n Script Completed. `n Script Runtime: ($ScriptTime) seconds.")
+#=================================================================================
+# End of script
+</ScriptBody>
+          <Parameters>
+            <Parameter>
+              <Name>SourceID</Name>
+              <Value>$MPElement$</Value>
+            </Parameter>
+            <Parameter>
+              <Name>ManagedEntityID</Name>
+              <Value>$Target/Id$</Value>
+            </Parameter>
+            <Parameter>
+              <Name>ComputerName</Name>
+              <Value>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</Value>
+            </Parameter>
+          </Parameters>
+          <TimeoutSeconds>120</TimeoutSeconds>
+        </DataSource>
+      </Discovery>
+    </Discoveries>
+    <Monitors>
+      <UnitMonitor ID="Custom.SQLServer.Databasefilegroup.Availability.Monitor" Accessibility="Public" Enabled="true" Target="Custom.SQLServer.DatabaseFileGroup.Class" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" TypeID="Custom.SQLServer.Databasefilegroup.Availability.Monitor.MonitorType" ConfirmDelivery="true">
+        <Category>AvailabilityHealth</Category>
+        <AlertSettings AlertMessage="Custom.SQLServer.Databasefilegroup.Availability.Monitor.AlertMessage">
+          <AlertOnState>Error</AlertOnState>
+          <AutoResolve>true</AutoResolve>
+          <AlertPriority>Normal</AlertPriority>
+          <AlertSeverity>Error</AlertSeverity>
+          <AlertParameters>
+            <AlertParameter1>$Data/Context/Property[@Name='Status']$</AlertParameter1>
+            <AlertParameter2>$Target/Property[Type="Custom.SQLServer.DatabaseFileGroup.Class"]/CustomFileGroupName$</AlertParameter2>
+			<AlertParameter3>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</AlertParameter3>
+			<AlertParameter4>$Target/Property[Type="Custom.SQLServer.DatabaseFileGroup.Class"]/SQLServerInstance$</AlertParameter4>
+			<AlertParameter5>$Target/Property[Type="Custom.SQLServer.DatabaseFileGroup.Class"]/FileGroupSpace$</AlertParameter5>
+			<AlertParameter6>$Target/Property[Type="Custom.SQLServer.DatabaseFileGroup.Class"]/DBName$</AlertParameter6>
+          </AlertParameters>
+        </AlertSettings>
+        <OperationalStates>
+          <OperationalState ID="GoodCondition" MonitorTypeStateID="GoodCondition" HealthState="Success" />
+          <OperationalState ID="BadCondition" MonitorTypeStateID="BadCondition" HealthState="Error" />
+        </OperationalStates>
+        <Configuration>
+          <IntervalSeconds>600</IntervalSeconds>
+          <SyncTime />
+          <CustomFileGroupName>$Target/Property[Type="Custom.SQLServer.DatabaseFileGroup.Class"]/CustomFileGroupName$</CustomFileGroupName>
+          <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+          <TimeoutSeconds>120</TimeoutSeconds>
+          <MatchCount>1</MatchCount>
+        </Configuration>
+      </UnitMonitor>
+    </Monitors>
+  </Monitoring>
+    <Presentation>
+    <StringResources>
+      <StringResource ID="Custom.SQLServer.Databasefilegroup.Availability.Monitor.AlertMessage" />
+    </StringResources>
+  </Presentation>
+  <LanguagePacks>
+    <LanguagePack ID="ENU" IsDefault="true">
+      <DisplayStrings>
+        <DisplayString ElementID="Custom.SQLServer.DatabaseFileGroup.Class">
+          <Name>Custom SQLServer DatabaseFileGroup Class</Name>
+        </DisplayString>
+        <DisplayString ElementID="Custom.SQLServer.DatabaseFileGroup.Class.Discovery">
+          <Name>Custom SQLServer DatabaseFileGroup Class Discovery</Name>
+        </DisplayString>
+        <DisplayString ElementID="Custom.SQLServer.DatabaseFileGroup.Class" SubElementID="FileGroupName">
+          <Name>FileGroupName</Name>
+        </DisplayString>
+        <DisplayString ElementID="Custom.SQLServer.DatabaseFileGroup.Class" SubElementID="DBName">
+          <Name>DBName</Name>
+        </DisplayString>
+        <DisplayString ElementID="Custom.SQLServer.DatabaseFileGroup.Class" SubElementID="CustomFileGroupName">
+          <Name>CustomFileGroupName</Name>
+        </DisplayString>
+        <DisplayString ElementID="Custom.SQLServer.DatabaseFileGroup.Class" SubElementID="SQLServerInstance">
+          <Name>SQLServerInstance</Name>
+        </DisplayString>
+        <DisplayString ElementID="Custom.SQLServer.DatabaseFileGroup.Class" SubElementID="FileGroupSpace">
+          <Name>FileGroupSpace</Name>
+        </DisplayString>		
+        <DisplayString ElementID="Custom.SQLServer.Databasefilegroup.Availability.Monitor">
+          <Name>Custom SQLServer Databasefilegroup Availability Monitor</Name>
+        </DisplayString>		
+        <DisplayString ElementID="Custom.SQLServer.Databasefilegroup.Availability.Monitor" SubElementID="GoodCondition">
+          <Name>Good Condition</Name>
+        </DisplayString>
+        <DisplayString ElementID="Custom.SQLServer.Databasefilegroup.Availability.Monitor" SubElementID="BadCondition">
+          <Name>Bad Condition</Name>
+        </DisplayString>
+        <DisplayString ElementID="Custom.SQLServer.Databasefilegroup.Availability.Monitor.AlertMessage">
+          <Name>Custom SQLServer Databasefilegroup Availability Monitor: Failure</Name>
+          <Description>The Database file group Name {1} Hosted on SQL instance {3} for Database {5} on SQL server {2} is having free space as {4}</Description>
+        </DisplayString>		
+      </DisplayStrings>
+    </LanguagePack>
+  </LanguagePacks>
+</ManagementPack>
