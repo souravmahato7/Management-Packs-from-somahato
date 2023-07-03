@@ -1,0 +1,566 @@
+﻿<?xml version="1.0" encoding="utf-8"?><ManagementPack ContentReadable="true" SchemaVersion="2.0" OriginalSchemaVersion="2.0" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <Manifest>
+    <Identity>
+      <ID>Custom.MultipleServerService.Monitoring.ManagementPack</ID>
+      <Version>1.0.0.15</Version>
+    </Identity>
+    <Name>Custom MultipleServerService Monitoring ManagementPack</Name>
+    <References>
+      <Reference Alias="MicrosoftSystemCenterServiceDesignerLibrary7084436">
+        <ID>Microsoft.SystemCenter.ServiceDesigner.Library</ID>
+        <Version>7.0.8447.6</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="Windows">
+        <ID>Microsoft.Windows.Library</ID>
+        <Version>7.5.8501.1</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="Image">
+        <ID>System.Image.Library</ID>
+        <Version>7.5.8501.1</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="System">
+        <ID>System.Library</ID>
+        <Version>7.5.8501.1</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="MicrosoftSystemCenterLibrary7084486">
+        <ID>Microsoft.SystemCenter.Library</ID>
+        <Version>10.22.10118.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="Health">
+        <ID>System.Health.Library</ID>
+        <Version>7.0.8447.6</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+    </References>
+  </Manifest>
+  <TypeDefinitions>
+    <EntityTypes>
+      <ClassTypes>
+        <ClassType ID="Custom.MultipleServerService.Enabled.Class" Accessibility="Public" Abstract="false" Base="Windows!Microsoft.Windows.LocalApplication" Hosted="true" Singleton="false" Extension="false">
+          <Property ID="ServiceName" Type="string" AutoIncrement="false" Key="true" CaseSensitive="false" MaxLength="256" MinLength="0" Required="true" Scale="0" />
+        </ClassType>
+        <ClassType ID="Service_243cdcd3c0974b0db48e1411017c2591" Accessibility="Public" Abstract="false" Base="MicrosoftSystemCenterServiceDesignerLibrary7084436!Microsoft.SystemCenter.ServiceDesigner.GenericService" Hosted="false" Singleton="true" Extension="false" />
+        <ClassType ID="SC_d616345a86c6417387aae71e1a9b3716_Service_243cdcd3c0974b0db48e1411017c2591" Accessibility="Public" Abstract="false" Base="MicrosoftSystemCenterServiceDesignerLibrary7084436!Microsoft.SystemCenter.ServiceDesigner.ServiceComponentGroup" Hosted="false" Singleton="true" Extension="false" />
+      </ClassTypes>
+      <RelationshipTypes>
+        <RelationshipType ID="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7" Accessibility="Public" Abstract="false" Base="System!System.Containment">
+          <Source ID="source" MinCardinality="0" MaxCardinality="2147483647" Type="SC_d616345a86c6417387aae71e1a9b3716_Service_243cdcd3c0974b0db48e1411017c2591" />
+          <Target ID="target" MinCardinality="0" MaxCardinality="2147483647" Type="System!System.Entity" />
+        </RelationshipType>
+        <RelationshipType ID="SCMembership_292f1635ce694ba096544b41ad217f2f" Accessibility="Public" Abstract="false" Base="System!System.Containment">
+          <Source ID="source" MinCardinality="0" MaxCardinality="2147483647" Type="Service_243cdcd3c0974b0db48e1411017c2591" />
+          <Target ID="target" MinCardinality="0" MaxCardinality="2147483647" Type="SC_d616345a86c6417387aae71e1a9b3716_Service_243cdcd3c0974b0db48e1411017c2591" />
+        </RelationshipType>
+      </RelationshipTypes>
+    </EntityTypes>
+    <ModuleTypes>
+      <DataSourceModuleType ID="Custom.MultipleServerService.Availability.Monitor.DS" Accessibility="Internal" Batching="false">
+        <Configuration>
+          <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="0" type="xsd:string" name="SyncTime" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:string" name="ServiceName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:string" name="ComputerName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:integer" name="TimeoutSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="SyncTime" Selector="$Config/SyncTime$" ParameterType="string" />
+          <OverrideableParameter ID="ComputerName" Selector="$Config/ComputerName$" ParameterType="string" />
+          <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
+        </OverrideableParameters>
+        <ModuleImplementation Isolation="Any">
+          <Composite>
+            <MemberModules>
+              <DataSource ID="Scheduler" TypeID="System!System.Scheduler">
+                <Scheduler>
+                  <SimpleReccuringSchedule>
+                    <Interval Unit="Seconds">$Config/IntervalSeconds$</Interval>
+                    <SyncTime>$Config/SyncTime$</SyncTime>
+                  </SimpleReccuringSchedule>
+                  <ExcludeDates />
+                </Scheduler>
+              </DataSource>
+              <ProbeAction ID="PA" TypeID="Windows!Microsoft.Windows.PowerShellPropertyBagTriggerOnlyProbe">
+                <ScriptName>Custom.MultipleServerService.Availability.Monitor.ps1</ScriptName>
+                <ScriptBody>
+param([string]$ComputerName)				
+#=================================================================================
+#  Describe Script Here
+#
+#  Author: Sourav Mahato 
+#  v1.0
+
+
+# Constants section - modify stuff here:
+#=================================================================================
+# Assign script name variable for use in event logging.  
+$ScriptName = "Custom.MultipleServerService.Availability.Monitor.ps1"
+$EventID = "7890"
+#=================================================================================
+
+
+# Starting Script section - All scripts get this
+#=================================================================================
+# Gather the start time of the script
+$StartTime = Get-Date
+#Set variable to be used in logging events
+$whoami = whoami
+# Load MOMScript API
+$momapi = New-Object -comObject MOM.ScriptAPI
+
+#Log script event that we are starting task
+$momapi.LogScriptEvent($ScriptName,$EventID,0,"`n Script is starting. `n Running as ($whoami).")
+#=================================================================================
+
+
+# Begin MAIN script section
+#=================================================================================
+#Log script parameters we received
+#$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nScript parameters passed into datasource: `nComputerName: ($ComputerName).")
+
+$Services = Get-WmiObject -Query "Select * from WIn32_Service Where (name like 'Audiosrv')"
+
+foreach ($Service in $Services)
+{
+    #$ServiceDetails = Get-WmiObject -Query 'Select * from WIn32_Service Where name = "$Service.name"'
+    $State = $Service.State
+    
+    $condition = ''    
+    if ($Service.State -eq "Running") 
+    {
+        $condition = 'GoodCondition'
+    }
+    Else
+    {
+        $condition = 'BadCondition'
+    }
+    
+
+  $bag = $momApi.CreatePropertyBag()
+  #$momapi.LogScriptEvent($ScriptName,$EventID,0,"`nHealthy:  The Service called $Service.Name is in $Service.State State.")
+  $bag.AddValue('ComputerName',$ComputerName)
+  $bag.AddValue('Result',$condition)
+  $bag.AddValue('ServiceName',$Service.Name)
+  #$bag.AddValue('Path',$Path)
+  $bag.AddValue('Caption',$Service.Caption)
+  $bag.AddValue('StartMode',$Service.StartMode)
+  $bag.AddValue('StartName',$Service.StartName)
+  $bag.AddValue('State',$Service.State)
+  
+  $bag
+  $momapi.Return($bag)
+  }
+
+
+# End of script section
+#=================================================================================
+#Log an event for script ending and total execution time.
+$EndTime = Get-Date
+$ScriptTime = ($EndTime - $StartTime).TotalSeconds
+$momapi.LogScriptEvent($ScriptName,$EventID,0,"`n Script Completed. `n Script Runtime: ($ScriptTime) seconds.")
+#=================================================================================
+# End of script                
+				</ScriptBody>
+                <Parameters>
+                  <Parameter>
+                    <Name>ComputerName</Name>
+                    <Value>$Config/ComputerName$</Value>
+                  </Parameter>
+                </Parameters>
+                <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
+              </ProbeAction>
+              <ConditionDetection ID="InstanceFilter" TypeID="System!System.ExpressionFilter">
+                <Expression>
+                  <SimpleExpression>
+                    <ValueExpression>
+                      <XPathQuery Type="String">Property[@Name="ServiceName"]</XPathQuery>
+                    </ValueExpression>
+                    <Operator>Equal</Operator>
+                    <ValueExpression>
+                      <Value Type="String">$Config/ServiceName$</Value>
+                    </ValueExpression>
+                  </SimpleExpression>
+                </Expression>
+              </ConditionDetection>
+            </MemberModules>
+            <Composition>
+              <Node ID="InstanceFilter">
+                <Node ID="PA">
+                  <Node ID="Scheduler" />
+                </Node>
+              </Node>
+            </Composition>
+          </Composite>
+        </ModuleImplementation>
+        <OutputType>System!System.PropertyBagData</OutputType>
+      </DataSourceModuleType>
+    </ModuleTypes>
+    <MonitorTypes>
+      <UnitMonitorType ID="Custom.MultipleServerService.Availability.Monitor.MonitorType" Accessibility="Internal">
+        <MonitorTypeStates>
+          <MonitorTypeState ID="GoodCondition" NoDetection="false" />
+          <MonitorTypeState ID="BadCondition" NoDetection="false" />
+        </MonitorTypeStates>
+        <Configuration>
+          <xsd:element minOccurs="1" type="xsd:integer" name="IntervalSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="0" type="xsd:string" name="SyncTime" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:string" name="ServiceName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:string" name="ComputerName" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:integer" name="TimeoutSeconds" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" type="xsd:integer" name="MatchCount" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="IntervalSeconds" Selector="$Config/IntervalSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="SyncTime" Selector="$Config/SyncTime$" ParameterType="string" />
+          <OverrideableParameter ID="ComputerName" Selector="$Config/ComputerName$" ParameterType="string" />
+          <OverrideableParameter ID="TimeoutSeconds" Selector="$Config/TimeoutSeconds$" ParameterType="int" />
+          <OverrideableParameter ID="MatchCount" Selector="$Config/MatchCount$" ParameterType="int" />
+        </OverrideableParameters>
+        <MonitorImplementation>
+          <MemberModules>
+            <DataSource ID="DS" TypeID="Custom.MultipleServerService.Availability.Monitor.DS">
+              <IntervalSeconds>$Config/IntervalSeconds$</IntervalSeconds>
+              <SyncTime>$Config/SyncTime$</SyncTime>
+              <ServiceName>$Config/ServiceName$</ServiceName>
+              <ComputerName>$Config/ComputerName$</ComputerName>
+              <TimeoutSeconds>$Config/TimeoutSeconds$</TimeoutSeconds>
+            </DataSource>
+            <ConditionDetection ID="GoodConditionFilter" TypeID="System!System.ExpressionFilter">
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='Result']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">GoodCondition</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </ConditionDetection>
+            <ConditionDetection ID="BadConditionFilter" TypeID="System!System.ExpressionFilter">
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='Result']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">BadCondition</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <SuppressionSettings>
+                <MatchCount>$Config/MatchCount$</MatchCount>
+              </SuppressionSettings>
+            </ConditionDetection>
+          </MemberModules>
+          <RegularDetections>
+            <RegularDetection MonitorTypeStateID="GoodCondition">
+              <Node ID="GoodConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </RegularDetection>
+            <RegularDetection MonitorTypeStateID="BadCondition">
+              <Node ID="BadConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </RegularDetection>
+          </RegularDetections>
+          <OnDemandDetections>
+            <OnDemandDetection MonitorTypeStateID="GoodCondition">
+              <Node ID="GoodConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </OnDemandDetection>
+            <OnDemandDetection MonitorTypeStateID="BadCondition">
+              <Node ID="BadConditionFilter">
+                <Node ID="DS" />
+              </Node>
+            </OnDemandDetection>
+          </OnDemandDetections>
+        </MonitorImplementation>
+      </UnitMonitorType>
+    </MonitorTypes>
+  </TypeDefinitions>
+  <Monitoring>
+    <Discoveries>
+      <Discovery ID="Custom.MultipleServerService.Enabled.Class.Discovery" Enabled="true" Target="Windows!Microsoft.Windows.Server.OperatingSystem" ConfirmDelivery="false" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes>
+          <DiscoveryClass TypeID="Custom.MultipleServerService.Enabled.Class">
+            <Property PropertyID="ServiceName" />
+          </DiscoveryClass>
+        </DiscoveryTypes>
+        <DataSource ID="DS" TypeID="Windows!Microsoft.Windows.TimedPowerShell.DiscoveryProvider">
+          <IntervalSeconds>86400</IntervalSeconds>
+          <SyncTime />
+          <ScriptName>Custom.MultipleServerService.Enabled.Class.Discovery.ps1</ScriptName>
+          <ScriptBody>
+param($SourceId,$ManagedEntityId,$ComputerName)
+
+
+# Manual Testing section - put stuff here for manually testing script - typically parameters:
+#=================================================================================
+# $SourceId = '{00000000-0000-0000-0000-000000000000}'
+# $ManagedEntityId = '{00000000-0000-0000-0000-000000000000}'
+# $ComputerName = "computername.domain.com"
+# $Computername = 'server.domain.com'
+#=================================================================================
+
+
+# Constants section - modify stuff here:
+#=================================================================================
+# Assign script name variable for use in event logging.  
+# ScriptName should be the same as the ID of the module that the script is contained in
+$ScriptName = "Custom.MultipleServerService.Enabled.Class.Discovery.ps1"
+$EventID = "1234"
+#=================================================================================
+
+
+# Starting Script section - All scripts get this
+#=================================================================================
+# Gather the start time of the script
+$StartTime = Get-Date
+#Set variable to be used in logging events
+$whoami = whoami
+# Load MOMScript API
+$momapi = New-Object -comObject MOM.ScriptAPI
+#Log script event that we are starting task
+#$momapi.LogScriptEvent($ScriptName,$EventID,0,"`n Script is starting. `n Running as ($whoami).")
+#=================================================================================
+	
+
+# Discovery Script section - Discovery scripts get this
+#=================================================================================
+# Load SCOM Discovery module
+$DiscoveryData = $momapi.CreateDiscoveryData(0, $SourceId, $ManagedEntityId)
+$Count = 0
+#=================================================================================	
+
+
+# Begin MAIN script section
+#=================================================================================
+
+$Services = Get-WmiObject -Query "Select * from WIn32_Service Where (name like 'Audiosrv')"
+
+foreach ($Service in $Services)
+{
+
+	$ServiceName = $Service.Name
+	#$Path = $Services.path
+	$Caption = $Service.Caption
+	$StartMode = $Service.StartMode
+	$StartName = $Service.StartName
+	$State = $Service.State
+	$instance = $DiscoveryData.CreateClassInstance("$MPElement[Name='Custom.MultipleServerService.Enabled.Class']$")
+	$instance.AddProperty("$MPElement[Name='Windows!Microsoft.Windows.Computer']/PrincipalName$", $ComputerName)
+	$instance.AddProperty("$MPElement[Name='Custom.MultipleServerService.Enabled.Class']/ServiceName$", $Service.name)
+	$instance.AddProperty("$MPElement[Name='System!System.Entity']/DisplayName$", $Service.Name)
+    $DiscoveryData.AddInstance($instance)
+}
+
+
+$Message="Discovery of Custom.MultipleServerService.Enabled.Class has been finished, Discovered $($count) records; `n"
+#$momapi.LogScriptEvent($ScriptName,$EventID,0,$Message)
+	
+# Return Discovery Items Normally  
+         
+$DiscoveryData
+
+$momapi.Return($DiscoveryData)
+#=================================================================================
+# End MAIN script section
+
+
+# End of script section
+#=================================================================================
+#Log an event for script ending and total execution time.
+$EndTime = Get-Date
+$ScriptTime = ($EndTime - $StartTime).TotalSeconds
+#$momapi.LogScriptEvent($ScriptName,$EventID,0,"`n Script Completed. `n Script Runtime: ($ScriptTime) seconds.")
+#=================================================================================
+# End of script
+</ScriptBody>
+          <Parameters>
+            <Parameter>
+              <Name>SourceID</Name>
+              <Value>$MPElement$</Value>
+            </Parameter>
+            <Parameter>
+              <Name>ManagedEntityID</Name>
+              <Value>$Target/Id$</Value>
+            </Parameter>
+            <Parameter>
+              <Name>ComputerName</Name>
+              <Value>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</Value>
+            </Parameter>
+          </Parameters>
+          <TimeoutSeconds>120</TimeoutSeconds>
+        </DataSource>
+      </Discovery>
+      <Discovery ID="Service_243cdcd3c0974b0db48e1411017c2591_SCPopulation" Enabled="true" Target="Service_243cdcd3c0974b0db48e1411017c2591" ConfirmDelivery="false" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes />
+        <DataSource ID="DS" TypeID="MicrosoftSystemCenterLibrary7084486!Microsoft.SystemCenter.GroupPopulator">
+          <RuleId>$MPElement$</RuleId>
+          <GroupInstanceId>$Target/Id$</GroupInstanceId>
+          <MembershipRules>
+            <MembershipRule>
+              <MonitoringClass>$MPElement[Name="SC_d616345a86c6417387aae71e1a9b3716_Service_243cdcd3c0974b0db48e1411017c2591"]$</MonitoringClass>
+              <RelationshipClass>$MPElement[Name="SCMembership_292f1635ce694ba096544b41ad217f2f"]$</RelationshipClass>
+            </MembershipRule>
+          </MembershipRules>
+        </DataSource>
+      </Discovery>
+      <Discovery ID="SC_d616345a86c6417387aae71e1a9b3716_Service_243cdcd3c0974b0db48e1411017c2591_ItemPopulation" Enabled="true" Target="SC_d616345a86c6417387aae71e1a9b3716_Service_243cdcd3c0974b0db48e1411017c2591" ConfirmDelivery="false" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes />
+        <DataSource ID="DS" TypeID="MicrosoftSystemCenterLibrary7084486!Microsoft.SystemCenter.GroupPopulator">
+          <RuleId>$MPElement$</RuleId>
+          <GroupInstanceId>$Target/Id$</GroupInstanceId>
+          <MembershipRules>
+            <MembershipRule>
+              <MonitoringClass>$MPElement[Name="System!System.Entity"]$</MonitoringClass>
+              <RelationshipClass>$MPElement[Name="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7"]$</RelationshipClass>
+              <IncludeList>
+                <MonitoringObjectId>{f292d304-4e39-6870-477f-ea58fab4d03c}</MonitoringObjectId>
+                <MonitoringObjectId>{25b4a268-581d-b8b0-45e2-5a43f6369c7e}</MonitoringObjectId>
+                <MonitoringObjectId>{644fcf10-3291-583f-8b2d-c1d587f49683}</MonitoringObjectId>
+              </IncludeList>
+            </MembershipRule>
+          </MembershipRules>
+        </DataSource>
+      </Discovery>
+    </Discoveries>
+    <Monitors>
+      <UnitMonitor ID="Custom.EnabledMultipleServerService.Availability.Monitor" Accessibility="Public" Enabled="true" Target="Custom.MultipleServerService.Enabled.Class" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" TypeID="Custom.MultipleServerService.Availability.Monitor.MonitorType" ConfirmDelivery="true">
+        <Category>AvailabilityHealth</Category>
+        <OperationalStates>
+          <OperationalState ID="GoodCondition" MonitorTypeStateID="GoodCondition" HealthState="Success" />
+          <OperationalState ID="BadCondition" MonitorTypeStateID="BadCondition" HealthState="Error" />
+        </OperationalStates>
+        <Configuration>
+          <IntervalSeconds>120</IntervalSeconds>
+          <SyncTime />
+          <ServiceName>$Target/Property[Type="Custom.MultipleServerService.Enabled.Class"]/ServiceName$</ServiceName>
+          <ComputerName>$Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</ComputerName>
+          <TimeoutSeconds>120</TimeoutSeconds>
+          <MatchCount>1</MatchCount>
+        </Configuration>
+      </UnitMonitor>
+      <DependencyMonitor ID="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7_Availability_HealthMonitor" Accessibility="Public" Enabled="true" Target="SC_d616345a86c6417387aae71e1a9b3716_Service_243cdcd3c0974b0db48e1411017c2591" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" RelationshipType="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7" MemberMonitor="Health!System.Health.AvailabilityState">
+        <Category>AvailabilityHealth</Category>
+        <AlertSettings AlertMessage="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7_Availability_HealthMonitor_AlertMessageResourceID">
+          <AlertOnState>Error</AlertOnState>
+          <AutoResolve>true</AutoResolve>
+          <AlertPriority>Normal</AlertPriority>
+          <AlertSeverity>Error</AlertSeverity>
+        </AlertSettings>
+        <Algorithm>Percentage</Algorithm>
+        <AlgorithmParameter>1</AlgorithmParameter>
+      </DependencyMonitor>
+      <DependencyMonitor ID="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7_Performance_HealthMonitor" Accessibility="Public" Enabled="true" Target="SC_d616345a86c6417387aae71e1a9b3716_Service_243cdcd3c0974b0db48e1411017c2591" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" RelationshipType="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7" MemberMonitor="Health!System.Health.PerformanceState">
+        <Category>PerformanceHealth</Category>
+        <Algorithm>WorstOf</Algorithm>
+      </DependencyMonitor>
+      <DependencyMonitor ID="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7_Configuration_HealthMonitor" Accessibility="Public" Enabled="true" Target="SC_d616345a86c6417387aae71e1a9b3716_Service_243cdcd3c0974b0db48e1411017c2591" ParentMonitorID="Health!System.Health.ConfigurationState" Remotable="true" Priority="Normal" RelationshipType="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7" MemberMonitor="Health!System.Health.ConfigurationState">
+        <Category>ConfigurationHealth</Category>
+        <Algorithm>WorstOf</Algorithm>
+      </DependencyMonitor>
+      <DependencyMonitor ID="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7_Security_HealthMonitor" Accessibility="Public" Enabled="true" Target="SC_d616345a86c6417387aae71e1a9b3716_Service_243cdcd3c0974b0db48e1411017c2591" ParentMonitorID="Health!System.Health.SecurityState" Remotable="true" Priority="Normal" RelationshipType="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7" MemberMonitor="Health!System.Health.SecurityState">
+        <Category>SecurityHealth</Category>
+        <Algorithm>WorstOf</Algorithm>
+      </DependencyMonitor>
+      <DependencyMonitor ID="SCMembership_292f1635ce694ba096544b41ad217f2f_Availability_HealthMonitor" Accessibility="Public" Enabled="true" Target="Service_243cdcd3c0974b0db48e1411017c2591" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" RelationshipType="SCMembership_292f1635ce694ba096544b41ad217f2f" MemberMonitor="Health!System.Health.AvailabilityState">
+        <Category>AvailabilityHealth</Category>
+        <Algorithm>WorstOf</Algorithm>
+      </DependencyMonitor>
+    </Monitors>
+    <Overrides>
+      <MonitorPropertyOverride ID="Alias46b8fb6414be4dde826455dc34d15e4eOverrideForMonitorSCIMembership475f1a9866594d8eaa1d1a5b91253fe7AvailabilityHealthMonitorForContextSCd616345a86c6417387aae71e1a9b3716Service243cdcd3c0974b0db48e1411017c2591" Context="SC_d616345a86c6417387aae71e1a9b3716_Service_243cdcd3c0974b0db48e1411017c2591" Enforced="false" Monitor="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7_Availability_HealthMonitor" Property="GenerateAlert">
+        <Value>true</Value>
+      </MonitorPropertyOverride>
+    </Overrides>
+  </Monitoring>
+  <Presentation>
+    <ImageReferences>
+      <ImageReference ElementID="SC_d616345a86c6417387aae71e1a9b3716_Service_243cdcd3c0974b0db48e1411017c2591" ImageID="Image!GenericBaseEntity16" />
+      <ImageReference ElementID="SC_d616345a86c6417387aae71e1a9b3716_Service_243cdcd3c0974b0db48e1411017c2591" ImageID="Image!GenericBaseEntity80" />
+    </ImageReferences>
+    <StringResources>
+      <StringResource ID="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7_Availability_HealthMonitor_AlertMessageResourceID" />
+    </StringResources>
+  </Presentation>
+  <LanguagePacks>
+    <LanguagePack ID="ENU" IsDefault="true">
+      <DisplayStrings>
+        <DisplayString ElementID="Custom.MultipleServerService.Enabled.Class">
+          <Name>Custom MultipleServerService Enabled Class</Name>
+        </DisplayString>
+        <DisplayString ElementID="Custom.MultipleServerService.Enabled.Class.Discovery">
+          <Name>Custom MultipleServerService Enabled Class Discovery</Name>
+        </DisplayString>
+        <DisplayString ElementID="Custom.MultipleServerService.Enabled.Class" SubElementID="ServiceName">
+          <Name>ServiceName</Name>
+        </DisplayString>
+        <DisplayString ElementID="Custom.EnabledMultipleServerService.Availability.Monitor">
+          <Name>Custom EnabledMultipleServerService Availability Monitor</Name>
+          <Description />
+        </DisplayString>
+        <DisplayString ElementID="Custom.EnabledMultipleServerService.Availability.Monitor" SubElementID="GoodCondition">
+          <Name>Good Condition</Name>
+        </DisplayString>
+        <DisplayString ElementID="Custom.EnabledMultipleServerService.Availability.Monitor" SubElementID="BadCondition">
+          <Name>Bad Condition</Name>
+        </DisplayString>
+        <DisplayString ElementID="Service_243cdcd3c0974b0db48e1411017c2591">
+          <Name>Custom Service Monitoring DA</Name>
+          <Description>Custom Service Monitoring DA</Description>
+        </DisplayString>
+        <DisplayString ElementID="SC_d616345a86c6417387aae71e1a9b3716_Service_243cdcd3c0974b0db48e1411017c2591">
+          <Name>Dual Service Monitoring</Name>
+        </DisplayString>
+        <DisplayString ElementID="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7_Availability_HealthMonitor">
+          <Name>Component Group Health Roll-up for type Object</Name>
+          <Description>The health of this Component is determined by the health of its members. This monitor rolls up health from each of the members of this Component.</Description>
+        </DisplayString>
+        <DisplayString ElementID="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7_Performance_HealthMonitor">
+          <Name>Component Group Health Roll-up for type Object</Name>
+          <Description>The health of this Component is determined by the health of its members. This monitor rolls up health from each of the members of this Component.</Description>
+        </DisplayString>
+        <DisplayString ElementID="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7_Configuration_HealthMonitor">
+          <Name>Component Group Health Roll-up for type Object</Name>
+          <Description>The health of this Component is determined by the health of its members. This monitor rolls up health from each of the members of this Component.</Description>
+        </DisplayString>
+        <DisplayString ElementID="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7_Security_HealthMonitor">
+          <Name>Component Group Health Roll-up for type Object</Name>
+          <Description>The health of this Component is determined by the health of its members. This monitor rolls up health from each of the members of this Component.</Description>
+        </DisplayString>
+        <DisplayString ElementID="SCMembership_292f1635ce694ba096544b41ad217f2f_Availability_HealthMonitor">
+          <Name>Service Health Roll-up for component Dual Service Monitoring</Name>
+          <Description>The health of this service is determined by the health of its components. This monitor rolls up health from a particular component to the serivce.</Description>
+        </DisplayString>
+        <DisplayString ElementID="Service_243cdcd3c0974b0db48e1411017c2591_SCPopulation">
+          <Name>Distributed Application Membership Discovery</Name>
+          <Description>This discovery will find which Components are members of this Distributed Application.</Description>
+        </DisplayString>
+        <DisplayString ElementID="SC_d616345a86c6417387aae71e1a9b3716_Service_243cdcd3c0974b0db48e1411017c2591_ItemPopulation">
+          <Name>Component Membership Discovery</Name>
+          <Description>This discovery will find which Objects are members of this Component.</Description>
+        </DisplayString>
+        <DisplayString ElementID="SCIMembership_475f1a9866594d8eaa1d1a5b91253fe7_Availability_HealthMonitor_AlertMessageResourceID">
+          <Name>Component Group Health Roll-up for type Object</Name>
+          <Description>The Service is in stopped state on all the servers
+SQL2017.lab.com
+SCORCH2016.lab.com</Description>
+        </DisplayString>
+      </DisplayStrings>
+    </LanguagePack>
+  </LanguagePacks>
+</ManagementPack>
