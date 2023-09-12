@@ -1,0 +1,75 @@
+﻿<?xml version="1.0" encoding="utf-8"?><ManagementPack ContentReadable="true" SchemaVersion="2.0" OriginalSchemaVersion="1.1" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <Manifest>
+    <Identity>
+      <ID>AgentList.Management.Pack</ID>
+      <Version>1.0.0.0</Version>
+    </Identity>
+    <Name>AgentList Management Pack</Name>
+    <References>
+      <Reference Alias="System">
+        <ID>System.Library</ID>
+        <Version>7.5.8501.1</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="SystemCenter">
+        <ID>Microsoft.SystemCenter.Library</ID>
+        <Version>7.0.8448.6</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+    </References>
+  </Manifest>
+  <Monitoring>
+    <Rules>
+      <Rule ID="MomUIGeneratedRule4cdca4b0ec3747048bd8eae0484a1c56" Enabled="true" Target="SystemCenter!Microsoft.SystemCenter.RootManagementServer" ConfirmDelivery="false" Remotable="true" Priority="Normal" DiscardLevel="100">
+        <Category>Custom</Category>
+        <DataSources>
+          <DataSource ID="Scheduler" TypeID="System!System.Scheduler">
+            <Scheduler>
+              <SimpleReccuringSchedule>
+                <Interval Unit="Days">1</Interval>
+                <SyncTime>00:00</SyncTime>
+              </SimpleReccuringSchedule>
+              <ExcludeDates />
+            </Scheduler>
+          </DataSource>
+        </DataSources>
+        <WriteActions>
+          <WriteAction ID="ExecuteCommand" TypeID="System!System.CommandExecuter">
+            <ApplicationName>C:\Windows\System32\WindowsPowerShell\v1.0\Powershell.exe</ApplicationName>
+            <WorkingDirectory>C:\SCOM</WorkingDirectory>
+            <CommandLine>-Command "&amp; '"C:\SCOM\GetAgentList.ps1"'"</CommandLine>
+            <TimeoutSeconds>300</TimeoutSeconds>
+            <RequireOutput>true</RequireOutput>
+          </WriteAction>
+        </WriteActions>
+      </Rule>
+    </Rules>
+  </Monitoring>
+  <Presentation>
+    <Folders>
+      <Folder ID="Folder_ab181e4bb29945be80c3f95ea2572cde" Accessibility="Public" ParentFolder="SystemCenter!Microsoft.SystemCenter.Monitoring.ViewFolder.Root" />
+    </Folders>
+  </Presentation>
+  <LanguagePacks>
+    <LanguagePack ID="ENU" IsDefault="false">
+      <DisplayStrings>
+        <DisplayString ElementID="AgentList.Management.Pack">
+          <Name>AgentList Management Pack</Name>
+        </DisplayString>
+        <DisplayString ElementID="Folder_ab181e4bb29945be80c3f95ea2572cde">
+          <Name>AgentList Management Pack</Name>
+        </DisplayString>
+        <DisplayString ElementID="MomUIGeneratedRule4cdca4b0ec3747048bd8eae0484a1c56">
+          <Name>Get Agent list from SCOM</Name>
+          <Description />
+        </DisplayString>
+        <DisplayString ElementID="MomUIGeneratedRule4cdca4b0ec3747048bd8eae0484a1c56" SubElementID="ExecuteCommand">
+          <Name>Run Command</Name>
+        </DisplayString>
+        <DisplayString ElementID="MomUIGeneratedRule4cdca4b0ec3747048bd8eae0484a1c56" SubElementID="Scheduler">
+          <Name>Scheduler</Name>
+        </DisplayString>
+      </DisplayStrings>
+    </LanguagePack>
+  </LanguagePacks>
+</ManagementPack>
